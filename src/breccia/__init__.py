@@ -20,12 +20,16 @@ from .layouts import (
     PerChannel,
     PerBlockMN,
 )
+from .kernels.reference import cast, dequantize, requantize
 
 __version__ = "0.0.1"
 
 __all__ = [
     "ScaledTensor",
     "from_buffer",
+    "cast",
+    "dequantize",
+    "requantize",
     "ScalingRecipe",
     "DelayedScaling",
     "Float8CurrentScaling",
