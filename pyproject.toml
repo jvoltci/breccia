@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "breccia"
+version = "0.0.1"
+description = "Cross-framework block-scaled tensor primitive (FP8 / FP4 / MXFP8 / NVFP4 / INT4)"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+authors = [{name = "breccia contributors"}]
+requires-python = ">=3.10"
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+torch = ["torch>=2.3"]
+mlx = ["mlx>=0.20"]
+jax = ["jax>=0.4", "jaxlib>=0.4"]
+triton = ["triton>=2.3"]
+bridges = ["safetensors>=0.4"]
+bench = ["modal>=0.60"]
+dev = ["pytest>=7", "pytest-cov", "hypothesis>=6"]
+
+[project.urls]
+Homepage = "https://github.com/jvoltci/breccia"
+Documentation = "https://github.com/jvoltci/breccia#readme"
+Issues = "https://github.com/jvoltci/breccia/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
