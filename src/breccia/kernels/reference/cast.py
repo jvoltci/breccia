@@ -20,7 +20,7 @@ from typing import Any
 
 import numpy as np
 
-from breccia._core import ScaledTensor
+from breccia._core import ScaledTensor, _is_torch, _is_mlx
 from breccia._formats import (
     E4M3_MAX,
     E5M2_MAX,
@@ -62,8 +62,21 @@ from ._utils import (
 
 
 def cast(x: Any, recipe: ScalingRecipe) -> ScaledTensor:
-    """Quantize a high-precision tensor to a ScaledTensor using ``recipe``."""
+    """Quantize a high-precision tensor to a ScaledTensor using ``recipe``.
+
+    Accepts NumPy ndarrays, PyTorch tensors, and (in M8+) MLX arrays. Returns
+    a ScaledTensor whose ``data`` / ``scale`` fields match the input's
+    framework.
+    """
+    if _is_torch(x):
+        return _cast_torch(x, recipe)
+    if _is_mlx(x):
+        return _cast_mlx(x, recipe)
     x_np = np.asarray(x, dtype=np.float32)
+    return _cast_numpy(x_np, recipe)
+
+
+def _cast_numpy(x_np: np.ndarray, recipe: ScalingRecipe) -> ScaledTensor:
     if isinstance(recipe, (DelayedScaling, Float8CurrentScaling)):
         return _cast_per_tensor_fp8(x_np, recipe)
     if isinstance(recipe, Float8BlockScaling):
@@ -77,8 +90,16 @@ def cast(x: Any, recipe: ScalingRecipe) -> ScaledTensor:
     raise TypeError(f"unsupported recipe: {type(recipe).__name__}")
 
 
-def dequantize(scaled: ScaledTensor) -> np.ndarray:
-    """Reverse :func:`cast`: produce a float32 tensor from a ScaledTensor."""
+def dequantize(scaled: ScaledTensor) -> Any:
+    """Reverse :func:`cast`. Output framework matches the input framework."""
+    if _is_torch(scaled.data):
+        return _dequantize_torch(scaled)
+    if _is_mlx(scaled.data):
+        return _dequantize_mlx(scaled)
+    return _dequantize_numpy(scaled)
+
+
+def _dequantize_numpy(scaled: ScaledTensor) -> np.ndarray:
     r = scaled.recipe
     if isinstance(r, (DelayedScaling, Float8CurrentScaling)):
         return _dequantize_per_tensor_fp8(scaled)
@@ -91,6 +112,79 @@ def dequantize(scaled: ScaledTensor) -> np.ndarray:
     if isinstance(r, INT4Scaling):
         return _dequantize_int4(scaled)
     raise TypeError(f"unsupported recipe: {type(r).__name__}")
+
+
+# ---------- PyTorch round-trip dispatch ----------
+
+
+def _cast_torch(x: Any, recipe: ScalingRecipe) -> ScaledTensor:
+    """Cast a torch tensor by round-tripping through numpy.
+
+    Reference path: moves to CPU, runs the NumPy reference, and wraps
+    the result fields back as torch tensors on the original device.
+    Triton-native FP8 paths land in M17; this is correctness only.
+    """
+    import torch
+
+    device = x.device
+    x_np = x.detach().to(torch.float32).cpu().numpy()
+    st_np = _cast_numpy(x_np, recipe)
+
+    # torch.as_tensor preserves 0-D shape (used for PerTensor scalar scales),
+    # unlike np.ascontiguousarray which promotes 0-D to 1-D.
+    data_torch = torch.as_tensor(np.asarray(st_np.data)).to(device)
+    scale_torch = torch.as_tensor(np.asarray(st_np.scale)).to(device)
+    return ScaledTensor(
+        data=data_torch,
+        scale=scale_torch,
+        recipe=recipe,
+        layout=st_np.layout,
+    )
+
+
+def _dequantize_torch(scaled: ScaledTensor) -> Any:
+    import torch
+
+    device = scaled.data.device
+    scaled_np = ScaledTensor(
+        data=scaled.data.detach().cpu().numpy(),
+        scale=np.asarray(scaled.scale.detach().cpu().numpy()),
+        recipe=scaled.recipe,
+        layout=scaled.layout,
+    )
+    out_np = _dequantize_numpy(scaled_np)
+    return torch.as_tensor(out_np).to(device)
+
+
+# ---------- MLX round-trip dispatch (stub; filled in M8) ----------
+
+
+def _cast_mlx(x: Any, recipe: ScalingRecipe) -> ScaledTensor:
+    import mlx.core as mx
+
+    x_np = np.asarray(x).astype(np.float32)
+    st_np = _cast_numpy(x_np, recipe)
+    data_mx = mx.array(np.asarray(st_np.data))
+    scale_mx = mx.array(np.asarray(st_np.scale))
+    return ScaledTensor(
+        data=data_mx,
+        scale=scale_mx,
+        recipe=recipe,
+        layout=st_np.layout,
+    )
+
+
+def _dequantize_mlx(scaled: ScaledTensor) -> Any:
+    import mlx.core as mx
+
+    scaled_np = ScaledTensor(
+        data=np.array(scaled.data),
+        scale=np.asarray(np.array(scaled.scale)),
+        recipe=scaled.recipe,
+        layout=scaled.layout,
+    )
+    out_np = _dequantize_numpy(scaled_np)
+    return mx.array(np.asarray(out_np))
 
 
 def requantize(scaled: ScaledTensor, recipe: ScalingRecipe) -> ScaledTensor:
