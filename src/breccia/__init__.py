@@ -20,7 +20,7 @@ from .layouts import (
     PerChannel,
     PerBlockMN,
 )
-from .kernels.reference import cast, dequantize, requantize
+from .kernels.reference import cast, dequantize, requantize, matmul
 
 __version__ = "0.0.1"
 
@@ -30,6 +30,7 @@ __all__ = [
     "cast",
     "dequantize",
     "requantize",
+    "matmul",
     "ScalingRecipe",
     "DelayedScaling",
     "Float8CurrentScaling",

@@ -5,5 +5,6 @@ these references within the recipe's declared tolerance.
 """
 
 from .cast import cast, dequantize, requantize
+from .matmul import matmul
 
-__all__ = ["cast", "dequantize", "requantize"]
+__all__ = ["cast", "dequantize", "requantize", "matmul"]
