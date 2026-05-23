@@ -13,6 +13,13 @@ from .recipes import (
     NVFP4BlockScaling,
     INT4Scaling,
 )
+from .layouts import (
+    Layout,
+    PerTensor,
+    PerBlockK,
+    PerChannel,
+    PerBlockMN,
+)
 
 __version__ = "0.0.1"
 
@@ -26,5 +33,10 @@ __all__ = [
     "MXFP8BlockScaling",
     "NVFP4BlockScaling",
     "INT4Scaling",
+    "Layout",
+    "PerTensor",
+    "PerBlockK",
+    "PerChannel",
+    "PerBlockMN",
     "__version__",
 ]
