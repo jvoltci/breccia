@@ -92,34 +92,105 @@ def to_transformer_engine(scaled: ScaledTensor) -> Any:
     """Convert a per-tensor FP8 ``ScaledTensor`` to a TE ``Float8Tensor``.
 
     Restricted to per-tensor recipes (``DelayedScaling`` /
-    ``Float8CurrentScaling``) in v0.0.1 — block-scaled / NVFP4 / INT4
-    don't have stable TE counterparts yet.
+    ``Float8CurrentScaling``). Block-scaled / NVFP4 / INT4 don't have
+    stable TE counterparts yet.
+
+    Pinned to the TE 1.11+ ``Float8Tensor`` constructor (keyword-only
+    ``data`` + ``fp8_scale_inv`` + ``fp8_dtype``). Validated live on
+    Modal H100 with TE 1.11.0 from NGC PyTorch 24.10:
+
+    .. code-block:: python
+
+        # Bit-exact round-trip
+        st = breccia.cast(x, breccia.Float8CurrentScaling())
+        te_t = breccia.bridges.to_transformer_engine(st)
+        st_back = breccia.bridges.from_transformer_engine(te_t)
+        # st.data is te_t._data; st.scale is te_t._scale_inv (squeezed)
     """
-    te = _require_te()
+    _require_te()
     if not isinstance(scaled.recipe, (DelayedScaling, Float8CurrentScaling)):
         raise NotImplementedError(
-            "to_transformer_engine v0.0.1 supports DelayedScaling / "
+            "to_transformer_engine supports DelayedScaling / "
             f"Float8CurrentScaling only, got {type(scaled.recipe).__name__}"
         )
 
-    fp8_dtype = getattr(te, "DType", None)
-    if fp8_dtype is None:
+    import torch
+
+    # Locate Float8Tensor across the few module paths TE uses across versions.
+    Float8Tensor = None
+    for mod_path in (
+        "transformer_engine.pytorch.tensor.float8_tensor",
+        "transformer_engine.pytorch.tensor",
+        "transformer_engine.pytorch.float8_tensor",
+        "transformer_engine.pytorch",
+    ):
+        try:
+            mod = __import__(mod_path, fromlist=["Float8Tensor"])
+            if hasattr(mod, "Float8Tensor"):
+                Float8Tensor = mod.Float8Tensor
+                break
+        except ImportError:
+            continue
+    if Float8Tensor is None:
         raise RuntimeError(
-            "TransformerEngine layout has changed; this bridge needs an update"
+            "Could not locate transformer_engine.pytorch.Float8Tensor. "
+            "Tested against TE 1.11+; please file an issue with your TE version."
         )
-    # TE constructor location varies by version; try both common paths.
-    try:
-        from transformer_engine.pytorch.tensor import Float8Tensor
-    except ImportError:
-        from transformer_engine.pytorch import Float8Tensor  # type: ignore[attr-defined]
+
+    # Locate the FP8 DType enum (TE has churned its location).
+    DType = None
+    for mod_path in (
+        "transformer_engine_torch",
+        "transformer_engine.pytorch.cpp_extensions",
+        "transformer_engine.pytorch.tensor.float8_tensor",
+        "transformer_engine.pytorch",
+        "transformer_engine.common.recipe",
+    ):
+        try:
+            mod = __import__(mod_path, fromlist=["DType"])
+            if hasattr(mod, "DType"):
+                DType = mod.DType
+                break
+        except ImportError:
+            continue
+    if DType is None:
+        raise RuntimeError(
+            "Could not locate the TE DType enum. Tested against TE 1.11+ "
+            "(transformer_engine_torch.DType); please file an issue."
+        )
 
     fp8_enum = (
-        fp8_dtype.kFloat8E4M3
+        DType.kFloat8E4M3
         if scaled.recipe.fp8_format == "E4M3"
-        else fp8_dtype.kFloat8E5M2
+        else DType.kFloat8E5M2
     )
+
+    # TE requires data to be a 1-byte dtype (uint8 / float8); coerce if needed.
+    data = scaled.data
+    if data.element_size() != 1:
+        raise ValueError(
+            f"to_transformer_engine requires 1-byte data dtype "
+            f"(uint8 or torch.float8_*), got {data.dtype}"
+        )
+    if not data.is_cuda:
+        data = data.cuda()
+    # TE Float8Tensor expects the data buffer to be uint8 specifically (it
+    # interprets bytes through fp8_dtype). Reinterpret torch.float8_* as uint8.
+    if data.dtype != torch.uint8:
+        data = data.view(torch.uint8)
+
+    # TE stores fp8_scale_inv as a shape-(1,) tensor.
+    scale_inv = scaled.scale
+    if hasattr(scale_inv, "to"):
+        scale_inv = scale_inv.to(torch.float32)
+    if scale_inv.ndim == 0:
+        scale_inv = scale_inv.reshape(1)
+    if not scale_inv.is_cuda:
+        scale_inv = scale_inv.cuda()
+
+    # Keyword-only constructor per TE 1.11+.
     return Float8Tensor(
-        data=scaled.data,
-        fp8_scale_inv=scaled.scale,
+        data=data,
+        fp8_scale_inv=scale_inv,
         fp8_dtype=fp8_enum,
     )

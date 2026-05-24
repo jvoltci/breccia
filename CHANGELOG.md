@@ -5,8 +5,40 @@ Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver
 
 ## [Unreleased]
 
-Nothing yet. v0.2 may pick up: reverse-direction TE bridge (TE 2.x
-constructor API), AMD ROCm Triton backend, vLLM/SGLang loader PRs.
+Nothing yet. v0.2 may pick up: AMD ROCm Triton backend, vLLM / SGLang
+loader PRs, native MLX FP8 on Metal.
+
+## [0.1.3] — 2026-05-24
+
+Closes the final v0.1 🟡: the reverse-direction TE bridge
+(`to_transformer_engine`) now round-trips **bit-exact** on H100.
+
+### Fixed
+
+- **`to_transformer_engine` pinned to TE 1.11+ constructor** — TE's
+  `Float8Tensor` uses a keyword-only `__new__(*, data, fp8_scale_inv,
+  fp8_dtype, ...)` signature. The bridge now discovers `Float8Tensor`
+  and the `DType` enum at runtime across the few module paths TE
+  exposes them at, coerces `data` to `uint8` (TE requires 1-byte
+  element size and interprets bytes via `fp8_dtype`), reshapes
+  `fp8_scale_inv` to the `(1,)` shape TE stores, and constructs
+  via keyword args.
+
+  Validated on Modal H100 with TE 1.11.0 from NGC PyTorch 24.10:
+
+  - `from_transformer_engine` round-trip: max abs diff = 0.000000
+  - `to_transformer_engine` round-trip: max abs diff = 0.000000
+  - Full TE → breccia → TE → dequantize: max abs diff = 0.000000
+
+  Bit-exact in both directions. All three are reproduced by
+  `benchmarks/modal_te_validate.py`.
+
+### Added
+
+- `benchmarks/modal_te_probe.py` — one-shot diagnostic that prints the
+  installed TE's `Float8Tensor.__new__` signature, factory methods,
+  and `DType` enum location. Run it on a new TE version to verify the
+  bridge's discovery code still finds the right symbols.
 
 ## [0.1.2] — 2026-05-24
 

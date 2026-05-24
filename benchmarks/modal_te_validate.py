@@ -196,23 +196,39 @@ def validate_te():
     print("\n[3/3] to_transformer_engine -> Float8Tensor")
     print("-" * 70)
 
-    # Build a fresh breccia ScaledTensor via cast
     fresh_st = breccia.cast(x, Float8CurrentScaling())
-    try:
-        te_back = to_transformer_engine(fresh_st)
-        print(f"  → {type(te_back).__name__}")
-        # If we can dequantize the TE tensor, compare
-        if hasattr(te_back, "dequantize"):
-            te_back_recovered = te_back.dequantize()
-            breccia_recovered = breccia.dequantize(fresh_st)
-            diff = (te_back_recovered - breccia_recovered).abs().max().item()
-            print(f"  Reverse-bridge round-trip diff: {diff:.6f}")
-    except Exception as e:
-        print(f"  to_transformer_engine failed: {type(e).__name__}: {e}")
-        print("  (TE constructor API drifts; bridge needs version-specific handling)")
+    te_back = to_transformer_engine(fresh_st)
+    print(f"  → {type(te_back).__name__}")
+    print(f"    shape={tuple(te_back.shape)}  dtype={te_back.dtype}")
+
+    # TE 1.11 dequantize: Float8Tensor.from_float8(torch.float32)
+    dequant_fn = (
+        getattr(te_back, "from_float8", None)
+        or getattr(te_back, "dequantize", None)
+    )
+    if dequant_fn is None:
+        raise RuntimeError("TE Float8Tensor has no from_float8 / dequantize method")
+
+    if dequant_fn.__name__ == "from_float8":
+        te_back_recovered = dequant_fn(torch.float32)
+    else:
+        te_back_recovered = dequant_fn()
+    breccia_recovered = breccia.dequantize(fresh_st)
+    diff = (te_back_recovered - breccia_recovered).abs().max().item()
+    print(f"  Reverse-bridge round-trip diff: {diff:.6f}")
+    assert diff < 1e-3, f"reverse-bridge dequantize mismatch: {diff}"
+
+    # Full TE → breccia → TE round-trip
+    print("\n[bonus] Full round-trip: TE → breccia → TE → dequantize")
+    rt_te = to_transformer_engine(from_transformer_engine(te_tensor))
+    rt_recovered = (rt_te.from_float8(torch.float32) if hasattr(rt_te, "from_float8") else rt_te.dequantize())
+    orig_recovered = (te_tensor.from_float8(torch.float32) if hasattr(te_tensor, "from_float8") else te_tensor.dequantize())
+    rt_diff = (rt_recovered - orig_recovered).abs().max().item()
+    print(f"  TE→breccia→TE dequantize diff: {rt_diff:.6f}")
+    assert rt_diff < 1e-3
 
     print("\n" + "=" * 70)
-    print("PASS - TransformerEngine bridge validated")
+    print("PASS - TransformerEngine bridge validated (forward + reverse)")
     print("=" * 70)
 
 

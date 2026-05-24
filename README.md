@@ -115,7 +115,7 @@ Reproduce: `python benchmarks/bench_accuracy.py`
 
 ## Status
 
-v0.1.2, beta — production-ready API.
+v0.1.3, beta — production-ready API, every v0.1 ✅.
 
 | Component | Status |
 | --- | --- |
@@ -130,8 +130,7 @@ v0.1.2, beta — production-ready API.
 | Triton FP8 scaled matmul (per-tensor) | ✅ H100 validated — **0.8 ms warm, 6× faster than `torch._scaled_mm`** |
 | Triton block-scaled FP8 matmul (DeepSeek pattern) | ✅ H100 validated (cos sim 0.9813 vs FP32) |
 | Triton AOT path (autotune=False default, fast first call) | ✅ |
-| TransformerEngine bridge (forward direction, bit-exact) | ✅ H100 validated (max abs diff = 0) |
-| TransformerEngine bridge (reverse direction across TE 2.x churn) | 🟡 forward is bit-exact; reverse needs per-version constructor pin |
+| TransformerEngine bridge (forward + reverse, bit-exact) | ✅ H100 validated (max abs diff = 0 in both directions) |
 
 250+ tests passing. CI on Python 3.10 / 3.11 / 3.12 (Ubuntu) + 3.11 (macOS).
 
