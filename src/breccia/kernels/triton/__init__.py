@@ -15,8 +15,8 @@ except ImportError:
     TRITON_AVAILABLE = False
 
 if TRITON_AVAILABLE:
-    from .scaled_matmul import scaled_matmul_triton
+    from .scaled_matmul import scaled_matmul_triton, block_scaled_matmul_triton
 
-    __all__ = ["scaled_matmul_triton", "TRITON_AVAILABLE"]
+    __all__ = ["scaled_matmul_triton", "block_scaled_matmul_triton", "TRITON_AVAILABLE"]
 else:
     __all__ = ["TRITON_AVAILABLE"]

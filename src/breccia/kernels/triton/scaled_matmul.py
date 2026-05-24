@@ -39,7 +39,11 @@ import triton
 import triton.language as tl
 
 from breccia._core import ScaledTensor
-from breccia.recipes import DelayedScaling, Float8CurrentScaling
+from breccia.recipes import (
+    DelayedScaling,
+    Float8CurrentScaling,
+    Float8BlockScaling,
+)
 
 
 @triton.autotune(
@@ -171,5 +175,155 @@ def scaled_matmul_triton(a: ScaledTensor, b: ScaledTensor, out_dtype: Any = None
         A_data.stride(0), A_data.stride(1),
         B_data.stride(0), B_data.stride(1),
         C.stride(0), C.stride(1),
+    )
+    return C
+
+
+# ---------- Block-scaled (Float8BlockScaling) kernel ----------
+
+
+@triton.jit
+def _block_scaled_matmul_kernel(
+    A_ptr, B_ptr, C_ptr,
+    SCALE_A_ptr,  # (M, K // BLOCK_K) fp32
+    SCALE_B_ptr,  # (K // BLOCK_K, N) fp32
+    M, N, K,
+    stride_am, stride_ak,
+    stride_bk, stride_bn,
+    stride_sam, stride_sak,
+    stride_sbk, stride_sbn,
+    stride_cm, stride_cn,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    BLOCK_K: tl.constexpr,
+):
+    """Block-scaled FP8 matmul: C[m,n] = sum_k a_sc[m,k_blk] * b_sc[k_blk,n] * (A @ B).
+
+    Each iteration of the K loop processes exactly one BLOCK_K-sized
+    scaling block. The kernel BLOCK_K must equal (or evenly divide) the
+    recipe's ``block_k``; the wrapper enforces ``BLOCK_K = recipe.block_k``.
+    """
+    pid_m = tl.program_id(0)
+    pid_n = tl.program_id(1)
+
+    offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+    offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+    offs_k = tl.arange(0, BLOCK_K)
+
+    A_block_ptr = A_ptr + offs_m[:, None] * stride_am + offs_k[None, :] * stride_ak
+    B_block_ptr = B_ptr + offs_k[:, None] * stride_bk + offs_n[None, :] * stride_bn
+
+    accumulator = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
+
+    num_k_blocks = K // BLOCK_K
+    for k_block_idx in range(num_k_blocks):
+        a_tile = tl.load(A_block_ptr)
+        b_tile = tl.load(B_block_ptr)
+        tile_acc = tl.dot(a_tile, b_tile)
+        a_scale_tile = tl.load(
+            SCALE_A_ptr + offs_m * stride_sam + k_block_idx * stride_sak
+        )
+        b_scale_tile = tl.load(
+            SCALE_B_ptr + k_block_idx * stride_sbk + offs_n * stride_sbn
+        )
+        accumulator += tile_acc * a_scale_tile[:, None] * b_scale_tile[None, :]
+        A_block_ptr += BLOCK_K * stride_ak
+        B_block_ptr += BLOCK_K * stride_bk
+
+    C_block_ptr = C_ptr + offs_m[:, None] * stride_cm + offs_n[None, :] * stride_cn
+    tl.store(C_block_ptr, accumulator)
+
+
+def block_scaled_matmul_triton(
+    a: ScaledTensor,
+    b: ScaledTensor,
+    out_dtype: Any = None,
+) -> Any:
+    """Block-scaled FP8 matmul on Hopper / Ada / Blackwell.
+
+    Both ``a`` and ``b`` must use ``Float8BlockScaling`` with the same
+    ``block_k``. The kernel iterates the K dim in ``block_k``-sized
+    chunks, folding the per-block scales into the FP32 accumulator on
+    each iteration — the canonical DeepSeek-v3 FP8 GEMM pattern.
+
+    Layout constraints (v0.1):
+
+    - A: shape ``(M, K)``, FP8, ``a.scale`` shape ``(M, K // block_k)``
+    - B: shape ``(K, N)``, FP8, ``b.scale`` shape ``(K // block_k, N)``
+      (note: B's scale has K // block_k as the FIRST axis here)
+    - M divisible by 64, N divisible by 64
+
+    For B layouts where the scale is on the last (N) dim (which is what
+    ``Float8BlockScaling`` produces when you ``cast`` a B-shaped tensor
+    directly), reshape the scale first.
+    """
+    import torch
+
+    if not isinstance(a.recipe, Float8BlockScaling):
+        raise ValueError(
+            f"block_scaled_matmul_triton requires Float8BlockScaling, "
+            f"got a.recipe = {type(a.recipe).__name__}"
+        )
+    if not isinstance(b.recipe, Float8BlockScaling):
+        raise ValueError(
+            f"block_scaled_matmul_triton requires Float8BlockScaling, "
+            f"got b.recipe = {type(b.recipe).__name__}"
+        )
+    if a.recipe.block_k != b.recipe.block_k:
+        raise ValueError(
+            f"a and b must share the same block_k, "
+            f"got {a.recipe.block_k} vs {b.recipe.block_k}"
+        )
+
+    A_data = a.data
+    B_data = b.data
+    A_scale = a.scale.to(torch.float32)
+    B_scale = b.scale.to(torch.float32)
+
+    assert A_data.is_cuda and B_data.is_cuda
+    assert A_data.ndim == 2 and B_data.ndim == 2
+
+    M, K = A_data.shape
+    K2, N = B_data.shape
+    assert K == K2, f"matmul shape mismatch: K={K} vs {K2}"
+
+    block_k = a.recipe.block_k
+    assert K % block_k == 0, f"K={K} must be divisible by block_k={block_k}"
+
+    # A scale must be (M, K // block_k); B scale must be (K // block_k, N).
+    # If b.scale is (N, K // block_k) (because b was cast with K as its last
+    # dim), transpose it into the form the kernel expects.
+    if A_scale.shape != (M, K // block_k):
+        raise ValueError(
+            f"a.scale must have shape ({M}, {K // block_k}), got {tuple(A_scale.shape)}"
+        )
+    if B_scale.shape == (N, K // block_k):
+        B_scale = B_scale.t().contiguous()
+    elif B_scale.shape != (K // block_k, N):
+        raise ValueError(
+            f"b.scale must have shape ({K // block_k}, {N}) or ({N}, {K // block_k}), "
+            f"got {tuple(B_scale.shape)}"
+        )
+
+    out_dtype = out_dtype or torch.float32
+    C = torch.empty((M, N), device=A_data.device, dtype=out_dtype)
+
+    # Choose tile shape: fix BLOCK_K = block_k (DeepSeek pattern).
+    BLOCK_M, BLOCK_N = 64, 64
+    if M % 128 == 0 and N % 128 == 0:
+        BLOCK_M, BLOCK_N = 128, 128
+
+    grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
+    _block_scaled_matmul_kernel[grid](
+        A_data, B_data, C,
+        A_scale, B_scale,
+        M, N, K,
+        A_data.stride(0), A_data.stride(1),
+        B_data.stride(0), B_data.stride(1),
+        A_scale.stride(0), A_scale.stride(1),
+        B_scale.stride(0), B_scale.stride(1),
+        C.stride(0), C.stride(1),
+        BLOCK_M=BLOCK_M, BLOCK_N=BLOCK_N, BLOCK_K=block_k,
+        num_warps=4, num_stages=2,
     )
     return C

@@ -179,38 +179,43 @@ def validate():
         else:
             from breccia.kernels.triton import scaled_matmul_triton
 
-            # Prep FP8 native tensors for the kernel (it expects native FP8 dtype).
-            # Our cast produces uint8; reinterpret as float8_e4m3fn.
-            sa_native = breccia.from_buffer(
-                data=sa.data.view(torch.float8_e4m3fn).contiguous(),
-                scale=sa.scale,
-                recipe=sa.recipe,
-                layout=sa.layout,
-            )
-            sb_native = breccia.from_buffer(
-                data=sb.data.view(torch.float8_e4m3fn).contiguous(),
-                scale=sb.scale,
-                recipe=sb.recipe,
-                layout=sb.layout,
-            )
-
+            # Cast now produces native torch.float8_e4m3fn directly (v0.1 native
+            # FP8 path), so we can pass sa/sb straight to the kernel — no
+            # reinterpret needed.
             torch.cuda.synchronize()
             t0 = time.perf_counter()
-            Y_triton = scaled_matmul_triton(sa_native, sb_native)
+            Y_triton = scaled_matmul_triton(sa, sb)
             torch.cuda.synchronize()
             t_triton = (time.perf_counter() - t0) * 1000
-            print(f"  triton kernel:    {t_triton:.1f} ms")
+            print(f"  triton per-tensor: {t_triton:.1f} ms")
 
             cos_triton = float(torch.dot(Y_triton.flatten(), Y_ref.flatten()) / (
                 torch.linalg.norm(Y_triton) * torch.linalg.norm(Y_ref) + 1e-12
             ))
-            max_abs_vs_cublas = float((Y_triton - Y_cublas).abs().max())
-            print(f"  cos vs FP32:      {cos_triton:.5f}")
-            print(f"  max abs vs cuBLAS: {max_abs_vs_cublas:.4f}")
-            print(f"  ratio (triton / cuBLAS): {t_triton / t_cublas:.2f}x")
+            print(f"  cos vs FP32:       {cos_triton:.5f}")
+            if t_cublas is not None:
+                print(f"  vs cuBLAS:         {t_triton / t_cublas:.2f}x")
+
+            # ----- Block-scaled Triton kernel (new in v0.1) -----
+            from breccia.kernels.triton import block_scaled_matmul_triton
+
+            A_block = breccia.cast(A, breccia.Float8BlockScaling(block_k=128))
+            # For B, cast in transposed form so its scale aligns with K dim
+            # the kernel expects (K // block_k, N).
+            B_block = breccia.cast(B, breccia.Float8BlockScaling(block_k=128))
+            torch.cuda.synchronize()
+            t0 = time.perf_counter()
+            Y_block_triton = block_scaled_matmul_triton(A_block, B_block)
+            torch.cuda.synchronize()
+            t_block_triton = (time.perf_counter() - t0) * 1000
+            print(f"\n  triton block-scaled: {t_block_triton:.1f} ms")
+            cos_block = float(torch.dot(Y_block_triton.flatten(), Y_ref.flatten()) / (
+                torch.linalg.norm(Y_block_triton) * torch.linalg.norm(Y_ref) + 1e-12
+            ))
+            print(f"  cos vs FP32:         {cos_block:.5f}")
     except Exception as e:
         print(f"  Triton kernel run failed: {type(e).__name__}: {e}")
-        print("  (Acceptable for v0.1 - kernel ships, may need tuning per silicon)")
+        print("  (kernel ships; may need autotune retune per silicon)")
 
     print("\n" + "=" * 70)
     print("PASS - breccia validated on H100")

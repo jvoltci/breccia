@@ -169,22 +169,22 @@
   <g transform="translate(0, 0)">
     <!-- Logo -->
     <text x="45" y="44" font-size="23" font-weight="700" fill="#F8FAFC" letter-spacing="-0.5px">breccia</text>
-    <circle cx="126" cy="34" r="3.5" fill="#F5AF19" filter="url(#glow-gold)" />
+    <circle cx="134" cy="34" r="3.5" fill="#F5AF19" filter="url(#glow-gold)" />
     
     <!-- Tagline separator and text -->
-    <line x1="144" y1="26" x2="144" y2="42" stroke="#374151" stroke-width="1" />
-    <text x="160" y="38" font-size="11.5" fill="#9CA3AF" font-weight="400" letter-spacing="0.3px" class="mono">block-scaled low-precision tensor primitive for ML compute</text>
+    <line x1="154" y1="26" x2="154" y2="42" stroke="#374151" stroke-width="1" />
+    <text x="170" y="38" font-size="11.5" fill="#9CA3AF" font-weight="400" letter-spacing="0.3px" class="mono">block-scaled low-precision tensor primitive for ML compute</text>
   </g>
 
-  <!-- 3. Left Panel (Philosophical) -->
+  <!-- 3. Left Panel (The Metaphor) -->
   <g transform="translate(0, 0)">
     <!-- Titles -->
     <text x="45" y="92" font-size="10" font-weight="700" fill="#F5AF19" letter-spacing="1.5px">THE METAPHOR</text>
     <text x="45" y="114" font-size="16" font-weight="600" fill="#F1F5F9" letter-spacing="-0.2px">Fragments in a Matrix</text>
     <text x="45" y="132" font-size="11" fill="#9CA3AF" font-style="italic">"Low-precision fragments bound together by a cementing scale matrix."</text>
 
-    <!-- Mosaic Rock Structure (Breccia) -->
-    <g transform="translate(10, 10)">
+    <!-- Mosaic Rock Structure (Breccia - Shifted down for absolute spacing) -->
+    <g transform="translate(10, 26)">
       <!-- Wireframe schematic background circle -->
       <circle cx="190" cy="210" r="75" fill="none" stroke="#1F2937" stroke-width="1" stroke-dasharray="4 4" />
       <circle cx="190" cy="210" r="50" fill="none" stroke="#1F2937" stroke-width="1" stroke-dasharray="2 2" />
@@ -217,7 +217,7 @@
   <!-- Middle Divider Line -->
   <line x1="415" y1="80" x2="415" y2="330" stroke="#1F2937" stroke-width="1.2" stroke-dasharray="3 3" />
 
-  <!-- 4. Right Panel (Practical) -->
+  <!-- 4. Right Panel (The Representation) -->
   <g transform="translate(0, 0)">
     <!-- Titles -->
     <text x="445" y="92" font-size="10" font-weight="700" fill="#F5AF19" letter-spacing="1.5px">THE REPRESENTATION</text>
@@ -228,7 +228,7 @@
     <g transform="translate(10, 15)">
       
       <!-- 1. High-Precision Row (FP16 Input) -->
-      <g transform="translate(435, 140)">
+      <g transform="translate(435, 130)">
         <text x="0" y="-8" font-size="9" font-weight="600" fill="#4B5563" letter-spacing="0.5px">HIGH-PRECISION INPUT TENSOR (FP16)</text>
         
         <!-- Frame -->
@@ -257,21 +257,21 @@
       </g>
 
       <!-- Laser Sweep Quantization Line -->
-      <g transform="translate(435, 168)">
+      <g transform="translate(435, 162)">
         <line x1="0" y1="0" x2="220" y2="0" stroke="#F5AF19" stroke-width="1" opacity="0.6" />
         <polygon points="110,-3 113,0 110,3" fill="#F5AF19" />
         <text x="225" y="3" font-size="8" fill="#F5AF19" class="mono">QUANTIZE (Block Size = 4)</text>
       </g>
 
       <!-- 2. ScaledTensor Representation (Low-Precision Data Shards + Scale Matrix) -->
-      <g transform="translate(435, 202)">
+      <g transform="translate(435, 196)">
         <text x="0" y="-8" font-size="9" font-weight="600" fill="#4B5563" letter-spacing="0.5px">BRECCIA SCALEDTENSOR REPRESENTATION</text>
         
-        <!-- ScaledTensor outer boundary box -->
-        <rect x="-5" y="-3" width="230" height="96" rx="4" fill="none" stroke="#1F2937" stroke-width="1.2" stroke-dasharray="3 3" />
+        <!-- ScaledTensor outer boundary box (Perfected height) -->
+        <rect x="-5" y="-3" width="230" height="98" rx="4" fill="none" stroke="#1F2937" stroke-width="1.2" stroke-dasharray="3 3" />
 
-        <!-- A. The Scales block (Per-block Scaling, e.g. S0 for first 4, S1 for next 4) -->
-        <g transform="translate(0, 10)">
+        <!-- A. The Scales block (Per-block Scaling) -->
+        <g transform="translate(0, 12)">
           <!-- Scale S0 capsule -->
           <rect x="0" y="0" width="105" height="18" rx="3" fill="#0A1612" stroke="#00CDAC" stroke-width="1.2" class="pulse-scale" />
           <text x="52.5" y="12" font-size="8.5" font-weight="600" fill="#00CDAC" class="mono" text-anchor="middle">Scale S0 (FP8/FP16)</text>
@@ -280,22 +280,22 @@
           <rect x="115" y="0" width="105" height="18" rx="3" fill="#1C140B" stroke="#F5AF19" stroke-width="1.2" class="pulse-scale" />
           <text x="167.5" y="12" font-size="8.5" font-weight="600" fill="#F5AF19" class="mono" text-anchor="middle">Scale S1 (FP8/FP16)</text>
           
-          <!-- Label -->
-          <text x="225" y="12" font-size="9.5" font-weight="600" fill="#9CA3AF" class="mono">scale</text>
+          <!-- Label (Perfected space) -->
+          <text x="228" y="13" font-size="9" fill="#9CA3AF" class="mono">scale (FP8/FP16)</text>
         </g>
 
-        <!-- Dynamic wireframe connection lines between Scales and Data Blocks -->
+        <!-- Dynamic wireframe connection lines between Scales and Data Blocks (Flawless alignment) -->
         <g fill="none" stroke-width="0.8" opacity="0.5">
           <!-- Left group connections -->
-          <path d="M 52.5,28 L 52.5,45 M 52.5,45 L 13,55 M 52.5,45 L 41,55 M 52.5,45 L 69,55 M 52.5,45 L 97,55" 
+          <path d="M 52.5,30 L 52.5,47 M 52.5,47 L 13,57 M 52.5,47 L 41,57 M 52.5,47 L 69,57 M 52.5,47 L 97,57" 
                 stroke="#00CDAC" class="scaling-wire" />
           <!-- Right group connections -->
-          <path d="M 167.5,28 L 167.5,45 M 167.5,45 L 128,55 M 167.5,45 L 156,55 M 167.5,45 L 184,55 M 167.5,45 L 211,55" 
+          <path d="M 167.5,30 L 167.5,47 M 167.5,47 L 128,57 M 167.5,47 L 156,57 M 167.5,47 L 184,57 M 167.5,47 L 211,57" 
                 stroke="#F5AF19" class="scaling-wire" />
         </g>
 
-        <!-- B. The Data block (Packed FP4/FP8 values) -->
-        <g transform="translate(0, 56)">
+        <!-- B. The Data block (Packed FP4/FP8 values - Clean of inner text) -->
+        <g transform="translate(0, 58)">
           <rect x="0" y="0" width="220" height="16" rx="2" fill="#070912" stroke="#1F2937" stroke-width="1" />
           
           <!-- Low-precision block items inside -->
@@ -314,18 +314,14 @@
           <!-- Dotted Divider between scale groups in data -->
           <line x1="110" y1="0" x2="110" y2="16" stroke="#374151" stroke-width="1" stroke-dasharray="2 2" />
           
-          <!-- Label inside -->
-          <text x="52.5" y="10.5" font-size="7.5" fill="#05070D" font-weight="600" class="mono" text-anchor="middle">FP4 / FP8</text>
-          <text x="167.5" y="10.5" font-size="7.5" fill="#05070D" font-weight="600" class="mono" text-anchor="middle">FP4 / FP8</text>
-
-          <!-- Label -->
-          <text x="225" y="12" font-size="9.5" font-weight="600" fill="#9CA3AF" class="mono">data</text>
+          <!-- Label (Perfected space) -->
+          <text x="228" y="12" font-size="9" fill="#9CA3AF" class="mono">data (FP4/FP8 shards)</text>
         </g>
         
-        <!-- Recipe and layout indicator -->
-        <g transform="translate(0, 84)">
-          <text x="0" y="0" font-size="8.5" fill="#4B5563" class="mono">recipe: Float8BlockScaling(block_k=4)</text>
-          <text x="140" y="0" font-size="8.5" fill="#4B5563" class="mono" text-anchor="end">layout: RowMajor</text>
+        <!-- Recipe and layout indicator (Spaced cleanly at the bottom) -->
+        <g transform="translate(0, 86)">
+          <text x="0" y="0" font-size="8.5" fill="#4B5563" class="mono">recipe: Float8BlockScaling</text>
+          <text x="220" y="0" font-size="8.5" fill="#4B5563" class="mono" text-anchor="end">layout: RowMajor</text>
         </g>
 
       </g>
