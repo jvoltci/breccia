@@ -42,6 +42,8 @@ image = (
         os.path.join(os.path.dirname(__file__), ".."),
         remote_path="/breccia",
         copy=True,
+        ignore=[".git/**", ".venv/**", ".pytest_cache/**", ".hypothesis/**",
+                "_site_test/**", "dist/**", "build/**", "*.egg-info/**"],
     )
     .run_commands("cd /breccia && pip install -e . --no-deps")
 )

@@ -71,10 +71,17 @@ def from_transformer_engine(
     No buffer copy: the resulting ``ScaledTensor`` shares ``_data`` and
     ``_scale_inv`` with the TE tensor. Recipe defaults to
     ``DelayedScaling`` with ``fp8_format`` inferred from the TE dtype.
+
+    TE stores ``_scale_inv`` as a shape-``(1,)`` tensor (a 1-D
+    one-element vector, not a scalar). breccia's ``PerTensor`` layout
+    expects a 0-D scalar, so we squeeze to match.
     """
     _require_te()
     data = te_tensor._data
     scale = te_tensor._scale_inv
+    # Coerce TE's (1,)-shape scale to 0-D scalar for PerTensor compatibility.
+    if hasattr(scale, "squeeze") and scale.ndim == 1 and scale.shape[0] == 1:
+        scale = scale.squeeze(0)
     if recipe is None:
         fp8_format = _te_dtype_to_fp8_format(getattr(te_tensor, "_fp8_dtype", "E4M3"))
         recipe = DelayedScaling(fp8_format=fp8_format)

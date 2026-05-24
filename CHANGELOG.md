@@ -5,9 +5,66 @@ Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver
 
 ## [Unreleased]
 
-Nothing yet. v0.2 work begins on Triton autotune AOT compilation and
-live TransformerEngine bridge validation in a Modal image with the
-CUDA toolkit pre-installed.
+Nothing yet. v0.2 may pick up: reverse-direction TE bridge (TE 2.x
+constructor API), AMD ROCm Triton backend, vLLM/SGLang loader PRs.
+
+## [0.1.2] — 2026-05-24
+
+Closes the two items that v0.1.1 left as "v0.2 TBD": **Triton AOT
+compilation** and **live TransformerEngine bridge validation**. Also
+ships a major documentation upgrade.
+
+### Added
+
+- **Triton AOT path** — `scaled_matmul_triton(a, b, autotune=False)`
+  (the new default) uses a single hardcoded config
+  `(BLOCK_M=128, BLOCK_N=128, BLOCK_K=32, num_warps=8, num_stages=3)`.
+  First call compiles only that config (~1.5s instead of ~3s for the
+  5-config sweep); **warm calls run at 0.8 ms on H100 — 6× faster than
+  `torch._scaled_mm`** at 2048×2048. `autotune=True` still available
+  for users with hot shapes worth the warmup cost.
+- **Live TransformerEngine bridge validation** — `modal_te_validate.py`
+  runs on a Modal H100 with NVIDIA's NGC PyTorch image
+  (`nvcr.io/nvidia/pytorch:24.10-py3`) which ships TE pre-built. The
+  forward bridge (TE `Float8Tensor` → `breccia.ScaledTensor`)
+  round-trips **bit-exact** (max abs diff = 0).
+- **Documentation: scree-tier upgrade**:
+  - Custom logo (`docs/assets/logo.svg`) + favicon
+    (`docs/assets/favicon.svg`)
+  - Custom brand CSS (`docs/assets/extra.css`) — purple matrix /
+    orange fragment palette, gradient hero banner, 6-card metric grid,
+    table styling, mkdocstrings styling, recipe/format chips
+  - Hero landing page (`docs/index.md`) — tagline + badges +
+    inline code preview + 3 call-to-action buttons + "At a glance"
+    metrics + "Why breccia" comparison + "What you can do today"
+    workflow table + examples list
+  - `mkdocs.yml` upgraded: 18 navigation features, `mkdocstrings[python]`
+    plugin for auto API docs from docstrings, full `pymdownx`
+    extension set (mermaid, emoji, keys, mark, smartsymbols,
+    tasklist), reorganized nav into Home / Get started / How-to /
+    Reference / Benchmarks / FAQ
+
+### Fixed
+
+- **TE bridge scale shape** — TE stores `_scale_inv` as a shape-`(1,)`
+  tensor; `from_transformer_engine` now squeezes to 0-D for
+  `PerTensor` compatibility. Found by the live Modal validation run.
+- **GH Pages docs deploy** — workflow installs `mkdocstrings[python]`
+  in addition to `mkdocs-material`. Dropped the empty `custom_dir`
+  reference that was crashing the build.
+
+### Validation gaps carrying forward
+
+- **TE bridge reverse direction** (`to_transformer_engine`) — TE 2.x
+  has churned the `Float8Tensor` constructor signature; the bridge
+  tries multiple paths but every TE version may need a version-specific
+  shim. Forward direction is bit-exact. v0.2 should pick a specific
+  TE version (e.g., 2.15) and pin the reverse path against it.
+- **AOT vs autotune trade-off** — single-config AOT is fast on
+  H100 for typical 2048-aligned shapes; small or odd shapes may want
+  `autotune=True`. Per-silicon retuning is v0.2.
+
+## [0.1.1] — 2026-05-24
 
 ## [0.1.1] — 2026-05-24
 
