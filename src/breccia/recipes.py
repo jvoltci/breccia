@@ -164,14 +164,25 @@ class NVFP4BlockScaling(ScalingRecipe):
 class INT4Scaling(ScalingRecipe):
     """INT4 weight-only quantization (GPTQ / AWQ family).
 
-    Groups of ``group_size`` weights along the K dim share one scale (and
-    optionally a zero-point — not modeled in v0.0.1, defer to v0.1).
+    Groups of ``group_size`` weights along the K dim share one scale,
+    and optionally one zero-point (asymmetric quantization).
+
+    Symmetric (``symmetric=True``, default): values in ``[-8, 7]`` if
+    ``signed`` else ``[0, 15]``, dequantize as ``x = scale * q``.
+
+    Asymmetric (``symmetric=False``): values in ``[0, 15]`` (unsigned by
+    convention), dequantize as ``x = scale * (q - zero_point)``. The
+    zero-point lets the format represent skewed distributions (e.g.,
+    activations with non-zero mean) more accurately.
+
+    AWQ/GPTQ checkpoints typically use asymmetric INT4.
     """
 
     name: ClassVar[str] = "int4"
     group_size: int = 128
     signed: bool = True
     scale_dtype: str = "fp16"
+    symmetric: bool = True
 
     def __post_init__(self) -> None:
         if self.group_size <= 0:
@@ -180,4 +191,10 @@ class INT4Scaling(ScalingRecipe):
             raise ValueError(
                 "scale_dtype must be one of 'fp16', 'bf16', 'fp32', "
                 f"got {self.scale_dtype!r}"
+            )
+        if not self.symmetric and self.signed:
+            raise ValueError(
+                "asymmetric INT4 (symmetric=False) requires signed=False; "
+                "the zero-point shifts an unsigned [0, 15] range into the "
+                "values' actual distribution"
             )

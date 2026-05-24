@@ -142,6 +142,8 @@ def save_safetensors(
     for name, st in scaled_tensors.items():
         tensors[f"{name}.data"] = _to_torch(st.data)
         tensors[f"{name}.scale"] = _to_torch(st.scale)
+        if st.zero_point is not None:
+            tensors[f"{name}.zero_point"] = _to_torch(st.zero_point)
         metadata[f"{name}.config"] = _config_to_json(st.recipe, st.layout)
 
     save_file(tensors, path, metadata=metadata)
@@ -174,10 +176,13 @@ def load_safetensors(path: str) -> Dict[str, ScaledTensor]:
         if data_key not in tensors or scale_key not in tensors:
             continue
         recipe, layout = _json_to_config(metadata[cfg_key])
+        zp_key = f"{name}.zero_point"
+        zero_point = tensors.get(zp_key, None)
         out[name] = ScaledTensor(
             data=tensors[data_key],
             scale=tensors[scale_key],
             recipe=recipe,
             layout=layout,
+            zero_point=zero_point,
         )
     return out

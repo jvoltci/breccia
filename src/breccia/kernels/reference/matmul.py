@@ -22,7 +22,7 @@ from typing import Any
 
 import numpy as np
 
-from breccia._core import ScaledTensor, _is_torch, _is_mlx
+from breccia._core import ScaledTensor, _is_torch, _is_mlx, _is_jax
 
 from .cast import dequantize
 
@@ -34,6 +34,8 @@ def _to_numpy(t: Any) -> np.ndarray:
         return t.detach().to(torch.float32).cpu().numpy()
     if _is_mlx(t):
         return np.asarray(np.array(t), dtype=np.float32)
+    if _is_jax(t):
+        return np.asarray(t, dtype=np.float32)
     return np.asarray(t, dtype=np.float32)
 
 
@@ -68,6 +70,7 @@ def matmul(a: Any, b: Any, out_dtype: Any = np.float32) -> np.ndarray:
     b_data = b.data if isinstance(b, ScaledTensor) else b
     is_torch_path = _is_torch(a_data) or _is_torch(b_data)
     is_mlx_path = _is_mlx(a_data) or _is_mlx(b_data)
+    is_jax_path = _is_jax(a_data) or _is_jax(b_data)
 
     if is_torch_path:
         import torch
@@ -100,6 +103,22 @@ def matmul(a: Any, b: Any, out_dtype: Any = np.float32) -> np.ndarray:
                 f"b.shape[-2]={b_x.shape[-2]}"
             )
         return a_x @ b_x
+
+    if is_jax_path:
+        import jax.numpy as jnp
+
+        a_j = dequantize(a) if isinstance(a, ScaledTensor) else a
+        b_j = dequantize(b) if isinstance(b, ScaledTensor) else b
+        if not _is_jax(a_j):
+            a_j = jnp.asarray(a_j)
+        if not _is_jax(b_j):
+            b_j = jnp.asarray(b_j)
+        if a_j.shape[-1] != b_j.shape[-2]:
+            raise ValueError(
+                f"matmul shape mismatch: a.shape[-1]={a_j.shape[-1]} != "
+                f"b.shape[-2]={b_j.shape[-2]}"
+            )
+        return (a_j @ b_j).astype(jnp.dtype(out_dtype))
 
     a_fp = dequantize(a) if isinstance(a, ScaledTensor) else np.asarray(a, dtype=np.float32)
     b_fp = dequantize(b) if isinstance(b, ScaledTensor) else np.asarray(b, dtype=np.float32)

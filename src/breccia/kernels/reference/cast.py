@@ -20,7 +20,7 @@ from typing import Any
 
 import numpy as np
 
-from breccia._core import ScaledTensor, _is_torch, _is_mlx
+from breccia._core import ScaledTensor, _is_torch, _is_mlx, _is_jax
 from breccia._formats import (
     E4M3_MAX,
     E5M2_MAX,
@@ -72,6 +72,8 @@ def cast(x: Any, recipe: ScalingRecipe) -> ScaledTensor:
         return _cast_torch(x, recipe)
     if _is_mlx(x):
         return _cast_mlx(x, recipe)
+    if _is_jax(x):
+        return _cast_jax(x, recipe)
     x_np = np.asarray(x, dtype=np.float32)
     return _cast_numpy(x_np, recipe)
 
@@ -96,6 +98,8 @@ def dequantize(scaled: ScaledTensor) -> Any:
         return _dequantize_torch(scaled)
     if _is_mlx(scaled.data):
         return _dequantize_mlx(scaled)
+    if _is_jax(scaled.data):
+        return _dequantize_jax(scaled)
     return _dequantize_numpy(scaled)
 
 
@@ -134,11 +138,17 @@ def _cast_torch(x: Any, recipe: ScalingRecipe) -> ScaledTensor:
     # unlike np.ascontiguousarray which promotes 0-D to 1-D.
     data_torch = torch.as_tensor(np.asarray(st_np.data)).to(device)
     scale_torch = torch.as_tensor(np.asarray(st_np.scale)).to(device)
+    zp_torch = (
+        torch.as_tensor(np.asarray(st_np.zero_point)).to(device)
+        if st_np.zero_point is not None
+        else None
+    )
     return ScaledTensor(
         data=data_torch,
         scale=scale_torch,
         recipe=recipe,
         layout=st_np.layout,
+        zero_point=zp_torch,
     )
 
 
@@ -146,11 +156,17 @@ def _dequantize_torch(scaled: ScaledTensor) -> Any:
     import torch
 
     device = scaled.data.device
+    zp_np = (
+        scaled.zero_point.detach().cpu().numpy()
+        if scaled.zero_point is not None
+        else None
+    )
     scaled_np = ScaledTensor(
         data=scaled.data.detach().cpu().numpy(),
         scale=np.asarray(scaled.scale.detach().cpu().numpy()),
         recipe=scaled.recipe,
         layout=scaled.layout,
+        zero_point=zp_np,
     )
     out_np = _dequantize_numpy(scaled_np)
     return torch.as_tensor(out_np).to(device)
@@ -166,25 +182,69 @@ def _cast_mlx(x: Any, recipe: ScalingRecipe) -> ScaledTensor:
     st_np = _cast_numpy(x_np, recipe)
     data_mx = mx.array(np.asarray(st_np.data))
     scale_mx = mx.array(np.asarray(st_np.scale))
+    zp_mx = mx.array(np.asarray(st_np.zero_point)) if st_np.zero_point is not None else None
     return ScaledTensor(
         data=data_mx,
         scale=scale_mx,
         recipe=recipe,
         layout=st_np.layout,
+        zero_point=zp_mx,
     )
 
 
 def _dequantize_mlx(scaled: ScaledTensor) -> Any:
     import mlx.core as mx
 
+    zp_np = (
+        np.asarray(np.array(scaled.zero_point)) if scaled.zero_point is not None else None
+    )
     scaled_np = ScaledTensor(
         data=np.array(scaled.data),
         scale=np.asarray(np.array(scaled.scale)),
         recipe=scaled.recipe,
         layout=scaled.layout,
+        zero_point=zp_np,
     )
     out_np = _dequantize_numpy(scaled_np)
     return mx.array(np.asarray(out_np))
+
+
+# ---------- JAX round-trip dispatch ----------
+
+
+def _cast_jax(x: Any, recipe: ScalingRecipe) -> ScaledTensor:
+    """Cast a JAX array by round-tripping through numpy.
+
+    JAX arrays are immutable; the round-trip materializes the result on
+    CPU then re-wraps as a JAX array via ``jnp.asarray``.
+    """
+    import jax.numpy as jnp
+
+    x_np = np.asarray(x, dtype=np.float32)
+    st_np = _cast_numpy(x_np, recipe)
+    zp_jax = jnp.asarray(np.asarray(st_np.zero_point)) if st_np.zero_point is not None else None
+    return ScaledTensor(
+        data=jnp.asarray(st_np.data),
+        scale=jnp.asarray(np.asarray(st_np.scale)),
+        recipe=recipe,
+        layout=st_np.layout,
+        zero_point=zp_jax,
+    )
+
+
+def _dequantize_jax(scaled: ScaledTensor) -> Any:
+    import jax.numpy as jnp
+
+    zp_np = np.asarray(scaled.zero_point) if scaled.zero_point is not None else None
+    scaled_np = ScaledTensor(
+        data=np.asarray(scaled.data),
+        scale=np.asarray(scaled.scale),
+        recipe=scaled.recipe,
+        layout=scaled.layout,
+        zero_point=zp_np,
+    )
+    out_np = _dequantize_numpy(scaled_np)
+    return jnp.asarray(out_np)
 
 
 def requantize(scaled: ScaledTensor, recipe: ScalingRecipe) -> ScaledTensor:
@@ -368,24 +428,57 @@ def _cast_int4(x: np.ndarray, recipe: INT4Scaling) -> ScaledTensor:
     if x.ndim < 2:
         raise ValueError(f"INT4Scaling requires x.ndim >= 2, got {x.ndim}")
     G = recipe.group_size
-    max_int = 7 if recipe.signed else 15
-    amax = block_amax(x, G)  # (..., M, K // G)
-    scale_dequant_fp32 = (amax / max_int).astype(np.float32)
-
     K = x.shape[-1]
-    blocks = x.reshape(x.shape[:-1] + (K // G, G))
-    scaled_blocks = blocks / scale_dequant_fp32[..., None]
-    data = encode_int4(scaled_blocks.reshape(x.shape), signed=recipe.signed)
+    if K % G != 0:
+        raise ValueError(f"K={K} must be divisible by group_size={G}")
 
-    # Down-cast scale to the recipe's declared dtype.
+    blocks_shape = x.shape[:-1] + (K // G, G)
+    blocks = x.reshape(blocks_shape)
     scale_dtype = _int4_dtype(recipe.scale_dtype)
-    scale_stored = scale_dequant_fp32.astype(scale_dtype)
 
+    if recipe.symmetric:
+        max_int = 7 if recipe.signed else 15
+        amax = np.maximum(np.max(np.abs(blocks), axis=-1), 1e-10).astype(np.float32)
+        scale_dequant_fp32 = (amax / max_int).astype(np.float32)
+        scaled_blocks = blocks / scale_dequant_fp32[..., None]
+        data = encode_int4(scaled_blocks.reshape(x.shape), signed=recipe.signed)
+        scale_stored = scale_dequant_fp32.astype(scale_dtype)
+        return ScaledTensor(
+            data=data,
+            scale=scale_stored,
+            recipe=recipe,
+            layout=PerBlockK(block_size=G),
+        )
+
+    # Asymmetric path: signed must be False by recipe validation.
+    # Per-block min/max → scale and zero_point.
+    block_min = np.min(blocks, axis=-1).astype(np.float32)  # (..., M, K//G)
+    block_max = np.max(blocks, axis=-1).astype(np.float32)
+    block_range = np.maximum(block_max - block_min, 1e-10)
+    scale_dequant_fp32 = (block_range / 15.0).astype(np.float32)
+    # Quantized value q = round((x - block_min) / scale) ∈ [0, 15]
+    # Equivalently, define zero_point = -block_min / scale so that
+    #     x = scale * (q - zero_point)
+    zero_point_fp32 = (-block_min / scale_dequant_fp32).astype(np.float32)
+    # Clip zero_point to representable [0, 15] range and round.
+    zero_point_int = np.clip(np.round(zero_point_fp32), 0, 15).astype(np.float32)
+
+    # Quantize: q = round(x / scale + zero_point), clipped to [0, 15]
+    q_blocks = np.clip(
+        np.round(blocks / scale_dequant_fp32[..., None] + zero_point_int[..., None]),
+        0,
+        15,
+    ).astype(np.uint8)
+    data = q_blocks.reshape(x.shape) & 0x0F
+
+    scale_stored = scale_dequant_fp32.astype(scale_dtype)
+    zero_point_stored = zero_point_int.astype(scale_dtype)
     return ScaledTensor(
         data=data,
         scale=scale_stored,
         recipe=recipe,
         layout=PerBlockK(block_size=G),
+        zero_point=zero_point_stored,
     )
 
 
@@ -395,5 +488,10 @@ def _dequantize_int4(scaled: ScaledTensor) -> np.ndarray:
     scale_fp32 = np.asarray(scaled.scale, dtype=np.float32)
     K = decoded.shape[-1]
     blocks = decoded.reshape(decoded.shape[:-1] + (K // G, G))
-    out = blocks * scale_fp32[..., None]
+
+    if scaled.zero_point is None:
+        out = blocks * scale_fp32[..., None]
+    else:
+        zero_point_fp32 = np.asarray(scaled.zero_point, dtype=np.float32)
+        out = (blocks - zero_point_fp32[..., None]) * scale_fp32[..., None]
     return out.reshape(decoded.shape).astype(np.float32)

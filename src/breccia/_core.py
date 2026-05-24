@@ -42,7 +42,7 @@ class ScaledTensor:
     a high-precision tensor) or via ``breccia.from_buffer(...)`` when the
     pieces already exist (e.g., loaded from a checkpoint).
 
-    The four fields are immutable. Cross-field validation (e.g., scale shape
+    The fields are immutable. Cross-field validation (e.g., scale shape
     matching the layout) is delegated to ``layout.validate(data, scale)`` if
     that method exists on the layout. This keeps ``_core`` independent of
     the concrete layout types defined in :mod:`breccia.layouts`.
@@ -63,6 +63,11 @@ class ScaledTensor:
         scaling).
     layout : Layout
         How the scale maps to data blocks.
+    zero_point : array-like or None
+        Optional zero-point tensor for asymmetric quantization
+        (``INT4Scaling(symmetric=False)`` etc.). Same shape as ``scale``
+        when present. ``None`` for symmetric recipes — the default.
+        Dequantization with a zero-point: ``x = scale * (data - zero_point)``.
 
     Examples
     --------
@@ -81,6 +86,7 @@ class ScaledTensor:
     scale: Any
     recipe: Any
     layout: Any
+    zero_point: Any = None
 
     def __post_init__(self) -> None:
         if not hasattr(self.data, "shape") or not hasattr(self.data, "dtype"):
@@ -99,6 +105,17 @@ class ScaledTensor:
             raise ValueError("recipe is required (see breccia.recipes)")
         if self.layout is None:
             raise ValueError("layout is required (see breccia.layouts)")
+        if self.zero_point is not None:
+            if not hasattr(self.zero_point, "shape"):
+                raise TypeError(
+                    f"zero_point must be array-like, got "
+                    f"{type(self.zero_point).__name__}"
+                )
+            if tuple(self.zero_point.shape) != tuple(self.scale.shape):
+                raise ValueError(
+                    f"zero_point.shape ({tuple(self.zero_point.shape)}) must "
+                    f"match scale.shape ({tuple(self.scale.shape)})"
+                )
 
         validate = getattr(self.layout, "validate", None)
         if callable(validate):
@@ -138,7 +155,13 @@ class ScaledTensor:
         )
 
 
-def from_buffer(data: Any, scale: Any, recipe: Any, layout: Any) -> ScaledTensor:
+def from_buffer(
+    data: Any,
+    scale: Any,
+    recipe: Any,
+    layout: Any,
+    zero_point: Any = None,
+) -> ScaledTensor:
     """Construct a ScaledTensor from existing buffers without copying.
 
     Use this when you already have a quantized data buffer and a scale
@@ -156,9 +179,18 @@ def from_buffer(data: Any, scale: Any, recipe: Any, layout: Any) -> ScaledTensor
         The recipe that produced this data.
     layout : Layout
         How the scale maps to the data.
+    zero_point : array-like, optional
+        Per-group zero-point for asymmetric quantization (same shape as
+        ``scale``). Defaults to ``None`` for symmetric recipes.
 
     Returns
     -------
     ScaledTensor
     """
-    return ScaledTensor(data=data, scale=scale, recipe=recipe, layout=layout)
+    return ScaledTensor(
+        data=data,
+        scale=scale,
+        recipe=recipe,
+        layout=layout,
+        zero_point=zero_point,
+    )
