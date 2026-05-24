@@ -1,5 +1,5 @@
 site_name: breccia
-site_description: A cross-framework block-scaled tensor primitive (FP8 / FP4 / MXFP8 / NVFP4 / INT4)
+site_description: Block-scaled tensors with Triton FP8 scaled-matmul validated on H100. NumPy / PyTorch / MLX / JAX backends.
 site_url: https://jvoltci.github.io/breccia/
 repo_url: https://github.com/jvoltci/breccia
 repo_name: jvoltci/breccia
@@ -7,30 +7,45 @@ edit_uri: edit/master/docs/
 
 theme:
   name: material
+  custom_dir: docs/overrides
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
   features:
+    - announce.dismiss
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
+    - content.tooltips
+    - navigation.expand
+    - navigation.footer
+    - navigation.indexes
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.path
+    - navigation.sections
     - navigation.tabs
     - navigation.tabs.sticky
-    - navigation.sections
-    - navigation.expand
     - navigation.top
     - navigation.tracking
-    - search.suggest
     - search.highlight
-    - content.code.copy
-    - content.code.annotate
+    - search.share
+    - search.suggest
     - toc.follow
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep purple
-      accent: amber
+      primary: custom
+      accent: deep orange
       toggle:
         icon: material/weather-sunny
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep purple
-      accent: amber
+      primary: custom
+      accent: deep orange
       toggle:
         icon: material/weather-night
         name: Switch to light mode
@@ -38,46 +53,93 @@ theme:
     text: Inter
     code: JetBrains Mono
 
+extra_css:
+  - assets/extra.css
+
 nav:
-  - Overview: index.md
-  - Getting started: getting-started.md
-  - Concepts: concepts.md
-  - Recipes: recipes.md
-  - Formats: formats.md
-  - API reference: api.md
-  - Bridges & migration: bridges.md
-  - Kernels: kernels.md
-  - Numerics: numerics.md
-  - Architecture: architecture.md
+  - Home: index.md
+  - Get started:
+      - Install & first program: getting-started.md
+      - Concepts: concepts.md
+      - Recipes: recipes.md
+      - Formats: formats.md
+  - How-to:
+      - Bridges & migration: bridges.md
+      - vLLM / SGLang integration: vllm-integration-sketch.md
+  - Reference:
+      - API reference: api.md
+      - Kernels: kernels.md
+      - Architecture: architecture.md
+      - Numerics: numerics.md
   - Benchmarks: benchmarks.md
   - FAQ: faq.md
-  - vLLM integration sketch: vllm-integration-sketch.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            heading_level: 3
+            merge_init_into_class: true
+            signature_crossrefs: true
+            separate_signature: true
+            show_signature_annotations: true
+            line_length: 88
 
 markdown_extensions:
+  - abbr
   - admonition
   - attr_list
   - def_list
   - footnotes
+  - md_in_html
   - tables
   - toc:
       permalink: true
       toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem
+  - pymdownx.caret
   - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
   - pymdownx.snippets
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:
       custom_checkbox: true
+  - pymdownx.tilde
 
 extra:
+  generator: false
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/jvoltci/breccia
+      name: GitHub
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/breccia/
+      name: PyPI

@@ -46,18 +46,65 @@ from breccia.recipes import (
 )
 
 
-@triton.autotune(
-    configs=[
-        triton.Config({"BLOCK_M": 64,  "BLOCK_N": 64,  "BLOCK_K": 32}, num_warps=4, num_stages=2),
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 64,  "BLOCK_K": 32}, num_warps=4, num_stages=3),
-        triton.Config({"BLOCK_M": 64,  "BLOCK_N": 128, "BLOCK_K": 32}, num_warps=4, num_stages=3),
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128, "BLOCK_K": 32}, num_warps=8, num_stages=3),
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 256, "BLOCK_K": 32}, num_warps=8, num_stages=3),
-    ],
-    key=["M", "N", "K"],
-)
+_AUTOTUNE_CONFIGS = [
+    triton.Config({"BLOCK_M": 64,  "BLOCK_N": 64,  "BLOCK_K": 32}, num_warps=4, num_stages=2),
+    triton.Config({"BLOCK_M": 128, "BLOCK_N": 64,  "BLOCK_K": 32}, num_warps=4, num_stages=3),
+    triton.Config({"BLOCK_M": 64,  "BLOCK_N": 128, "BLOCK_K": 32}, num_warps=4, num_stages=3),
+    triton.Config({"BLOCK_M": 128, "BLOCK_N": 128, "BLOCK_K": 32}, num_warps=8, num_stages=3),
+    triton.Config({"BLOCK_M": 128, "BLOCK_N": 256, "BLOCK_K": 32}, num_warps=8, num_stages=3),
+]
+
+
+@triton.autotune(configs=_AUTOTUNE_CONFIGS, key=["M", "N", "K"])
 @triton.jit
-def _scaled_matmul_kernel(
+def _scaled_matmul_kernel_autotuned(
+    A_ptr, B_ptr, C_ptr,
+    a_scale, b_scale,
+    M, N, K,
+    stride_am, stride_ak,
+    stride_bk, stride_bn,
+    stride_cm, stride_cn,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    BLOCK_K: tl.constexpr,
+):
+    _scaled_matmul_body(
+        A_ptr, B_ptr, C_ptr,
+        a_scale, b_scale,
+        M, N, K,
+        stride_am, stride_ak,
+        stride_bk, stride_bn,
+        stride_cm, stride_cn,
+        BLOCK_M, BLOCK_N, BLOCK_K,
+    )
+
+
+@triton.jit
+def _scaled_matmul_kernel_aot(
+    A_ptr, B_ptr, C_ptr,
+    a_scale, b_scale,
+    M, N, K,
+    stride_am, stride_ak,
+    stride_bk, stride_bn,
+    stride_cm, stride_cn,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    BLOCK_K: tl.constexpr,
+):
+    """AOT path: single hardcoded config, no autotune cold-start cost."""
+    _scaled_matmul_body(
+        A_ptr, B_ptr, C_ptr,
+        a_scale, b_scale,
+        M, N, K,
+        stride_am, stride_ak,
+        stride_bk, stride_bn,
+        stride_cm, stride_cn,
+        BLOCK_M, BLOCK_N, BLOCK_K,
+    )
+
+
+@triton.jit
+def _scaled_matmul_body(
     A_ptr, B_ptr, C_ptr,
     a_scale, b_scale,
     M, N, K,
@@ -102,7 +149,12 @@ def _scaled_matmul_kernel(
     tl.store(C_block_ptr, accumulator)
 
 
-def scaled_matmul_triton(a: ScaledTensor, b: ScaledTensor, out_dtype: Any = None) -> Any:
+def scaled_matmul_triton(
+    a: ScaledTensor,
+    b: ScaledTensor,
+    out_dtype: Any = None,
+    autotune: bool = False,
+) -> Any:
     """Run the Triton FP8 scaled matmul on two per-tensor ScaledTensors.
 
     Parameters
@@ -115,6 +167,13 @@ def scaled_matmul_triton(a: ScaledTensor, b: ScaledTensor, out_dtype: Any = None
         Right operand. Same constraints as ``a``.
     out_dtype : torch.dtype, optional
         Defaults to ``torch.float32``. ``torch.bfloat16`` is also supported.
+    autotune : bool, default ``False``
+        ``False`` (default) — AOT path: single hardcoded ``(BLOCK_M=128,
+        BLOCK_N=128, BLOCK_K=32, num_warps=8, num_stages=3)`` config.
+        First call ~50 ms (single compilation), subsequent calls are fast.
+        ``True`` — autotune over 5 configs. Better steady-state for any
+        specific shape, but first call is ~3 s (5 compilations + benchmarks).
+        Use autotune when you have a hot shape that justifies the warmup.
 
     Returns
     -------
@@ -123,7 +182,8 @@ def scaled_matmul_triton(a: ScaledTensor, b: ScaledTensor, out_dtype: Any = None
     Raises
     ------
     ImportError if Triton is not installed.
-    ValueError if the recipe is not per-tensor (block-scaled paths are v0.1).
+    ValueError if the recipe is not per-tensor (block-scaled paths use
+    :func:`block_scaled_matmul_triton`).
     """
     import torch
 
@@ -167,15 +227,33 @@ def scaled_matmul_triton(a: ScaledTensor, b: ScaledTensor, out_dtype: Any = None
     out_dtype = out_dtype or torch.float32
     C = torch.empty((M, N), device=A_data.device, dtype=out_dtype)
 
-    grid = lambda meta: (triton.cdiv(M, meta["BLOCK_M"]), triton.cdiv(N, meta["BLOCK_N"]))
-    _scaled_matmul_kernel[grid](
-        A_data, B_data, C,
-        a_scale_val, b_scale_val,
-        M, N, K,
-        A_data.stride(0), A_data.stride(1),
-        B_data.stride(0), B_data.stride(1),
-        C.stride(0), C.stride(1),
-    )
+    if autotune:
+        grid = lambda meta: (
+            triton.cdiv(M, meta["BLOCK_M"]),
+            triton.cdiv(N, meta["BLOCK_N"]),
+        )
+        _scaled_matmul_kernel_autotuned[grid](
+            A_data, B_data, C,
+            a_scale_val, b_scale_val,
+            M, N, K,
+            A_data.stride(0), A_data.stride(1),
+            B_data.stride(0), B_data.stride(1),
+            C.stride(0), C.stride(1),
+        )
+    else:
+        # AOT path: single config, no autotune sweep
+        BLOCK_M, BLOCK_N, BLOCK_K = 128, 128, 32
+        grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
+        _scaled_matmul_kernel_aot[grid](
+            A_data, B_data, C,
+            a_scale_val, b_scale_val,
+            M, N, K,
+            A_data.stride(0), A_data.stride(1),
+            B_data.stride(0), B_data.stride(1),
+            C.stride(0), C.stride(1),
+            BLOCK_M=BLOCK_M, BLOCK_N=BLOCK_N, BLOCK_K=BLOCK_K,
+            num_warps=8, num_stages=3,
+        )
     return C
 
 

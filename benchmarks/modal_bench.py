@@ -180,14 +180,24 @@ def validate():
             from breccia.kernels.triton import scaled_matmul_triton
 
             # Cast now produces native torch.float8_e4m3fn directly (v0.1 native
-            # FP8 path), so we can pass sa/sb straight to the kernel — no
-            # reinterpret needed.
+            # FP8 path), so we can pass sa/sb straight to the kernel.
+            #
+            # Default is autotune=False (AOT single config) — first call is
+            # ~50ms (one compile), not the ~3s of the autotune-grid path.
             torch.cuda.synchronize()
             t0 = time.perf_counter()
             Y_triton = scaled_matmul_triton(sa, sb)
             torch.cuda.synchronize()
             t_triton = (time.perf_counter() - t0) * 1000
-            print(f"  triton per-tensor: {t_triton:.1f} ms")
+            print(f"  triton AOT (first call): {t_triton:.1f} ms")
+
+            # Second call: pure execution time (kernel already compiled).
+            torch.cuda.synchronize()
+            t0 = time.perf_counter()
+            Y_triton = scaled_matmul_triton(sa, sb)
+            torch.cuda.synchronize()
+            t_triton_warm = (time.perf_counter() - t0) * 1000
+            print(f"  triton AOT (warm):       {t_triton_warm:.1f} ms")
 
             cos_triton = float(torch.dot(Y_triton.flatten(), Y_ref.flatten()) / (
                 torch.linalg.norm(Y_triton) * torch.linalg.norm(Y_ref) + 1e-12

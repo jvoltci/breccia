@@ -27,20 +27,17 @@ except ImportError:
 app = modal.App("breccia-te-validate")
 
 # NVIDIA publishes prebuilt TE wheels; pip install pulls them on CUDA Linux.
+# NVIDIA NGC PyTorch image ships transformer_engine pre-built. This avoids
+# the ~10-minute source build + CUDA toolkit setup that breaks on
+# debian_slim. The 24.x images carry TE matched to their PyTorch/CUDA.
 image = (
-    modal.Image.debian_slim(python_version="3.11")
-    .apt_install("build-essential", "git", "cmake", "ninja-build")
+    modal.Image.from_registry(
+        "nvcr.io/nvidia/pytorch:24.10-py3",
+    )
     .pip_install(
-        "torch>=2.3",
         "numpy>=1.24",
         "safetensors>=0.4",
-        "packaging",
-        "wheel",
-        "setuptools",
-        "ninja",
-        "pybind11",
     )
-    .pip_install("transformer_engine[pytorch]>=2.0")
     .add_local_dir(
         os.path.join(os.path.dirname(__file__), ".."),
         remote_path="/breccia",

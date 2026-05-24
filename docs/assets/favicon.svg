@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="6" fill="#7c3aed" />
+  <g fill="white">
+    <polygon points="5,7 12,5 14,11 9,14 4,11" opacity="0.95" />
+    <polygon points="18,4 26,6 27,12 22,15 17,10" opacity="0.95" />
+    <polygon points="11,16 18,15 20,22 14,25 8,22" opacity="0.95" />
+    <polygon points="22,18 28,20 28,26 23,28 20,24" opacity="0.95" />
+  </g>
+</svg>
