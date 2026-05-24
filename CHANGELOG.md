@@ -5,9 +5,33 @@ Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver
 
 ## [Unreleased]
 
-Nothing yet. v0.2 work begins on native FP8 acceleration (avoid the
-NumPy round-trip on PyTorch CUDA) and the block-scaled Triton kernel
-variants.
+Nothing yet. v0.2 work begins on Triton autotune AOT compilation and
+live TransformerEngine bridge validation in a Modal image with the
+CUDA toolkit pre-installed.
+
+## [0.1.1] — 2026-05-24
+
+Re-release with the **README updated to reflect what already shipped in
+0.1.0**. No code changes; the prior 0.1.0 wheel bundled an earlier
+draft of the README that still showed two features as 🟡 v0.2 when
+they were already implemented and validated on H100. The 0.1.1 wheel
+contains the corrected README.
+
+What 0.1.0 shipped (correctly described in 0.1.1's README):
+
+- **Native PyTorch FP8 acceleration** — `cast` on a torch tensor now
+  stays on the input device end-to-end and produces a `ScaledTensor`
+  whose `data` is the native `torch.float8_e4m3fn` (or `e5m2`) dtype.
+  No CPU round-trip for `DelayedScaling` / `Float8CurrentScaling` /
+  `Float8BlockScaling`.
+- **Block-scaled Triton kernel** —
+  `breccia.kernels.triton.block_scaled_matmul_triton` implements the
+  DeepSeek-v3 FP8 GEMM pattern: per-K-block scale folded into the FP32
+  accumulator on every K-loop iteration. H100 validated, cos sim
+  0.9813 vs FP32.
+
+Both have been live in the master branch since the 0.1.0 commit; this
+patch release just corrects the documentation.
 
 ## [0.1.0] — 2026-05-24
 
