@@ -1,0 +1,334 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 380" width="100%" height="100%">
+  <defs>
+    <!-- Fonts -->
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap');
+      
+      text {
+        font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono {
+        font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      }
+      
+      /* Philosophical Panel Animations */
+      .shard {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation-duration: 8s;
+        animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        animation-iteration-count: infinite;
+      }
+
+      .shard-teal {
+        animation-name: float-teal;
+      }
+      .shard-gold {
+        animation-name: float-gold;
+      }
+      .shard-purple {
+        animation-name: float-purple;
+      }
+      .shard-ruby {
+        animation-name: float-ruby;
+      }
+
+      @keyframes float-teal {
+        0%, 100% { transform: translate(0px, 0px) rotate(0deg); }
+        40% { transform: translate(-10px, -10px) rotate(-3deg); }
+        70% { transform: translate(-10px, -10px) rotate(-3deg); }
+      }
+      @keyframes float-gold {
+        0%, 100% { transform: translate(0px, 0px) rotate(0deg); }
+        40% { transform: translate(12px, -8px) rotate(4deg); }
+        70% { transform: translate(12px, -8px) rotate(4deg); }
+      }
+      @keyframes float-purple {
+        0%, 100% { transform: translate(0px, 0px) rotate(0deg); }
+        40% { transform: translate(-8px, 12px) rotate(-2deg); }
+        70% { transform: translate(-8px, 12px) rotate(-2deg); }
+      }
+      @keyframes float-ruby {
+        0%, 100% { transform: translate(0px, 0px) rotate(0deg); }
+        40% { transform: translate(10px, 10px) rotate(3deg); }
+        70% { transform: translate(10px, 10px) rotate(3deg); }
+      }
+
+      /* Cementing Matrix Pulse */
+      .cement-matrix {
+        animation: cement-glow 8s ease-in-out infinite;
+      }
+      @keyframes cement-glow {
+        0%, 100% { opacity: 0.15; stroke-width: 1.5; }
+        40% { opacity: 0.8; stroke-width: 3.5; }
+        70% { opacity: 0.8; stroke-width: 3.5; }
+      }
+
+      /* Practical Panel Pulse */
+      .pulse-scale {
+        animation: scale-glow 4s ease-in-out infinite alternate;
+      }
+      @keyframes scale-glow {
+        0% { opacity: 0.4; filter: drop-shadow(0 0 1px fill); }
+        100% { opacity: 1; filter: drop-shadow(0 0 6px #F5AF19); }
+      }
+      
+      .scaling-wire {
+        stroke-dasharray: 4 4;
+        animation: wire-flow 2s linear infinite;
+      }
+      @keyframes wire-flow {
+        0% { stroke-dashoffset: 0; }
+        100% { stroke-dashoffset: -20; }
+      }
+
+      .pulse-glow {
+        animation: pulse-opacity 4s ease-in-out infinite alternate;
+      }
+      @keyframes pulse-opacity {
+        0% { opacity: 0.15; }
+        100% { opacity: 0.35; }
+      }
+    </style>
+
+    <!-- Gradients -->
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#05070D" />
+      <stop offset="100%" stop-color="#0E0F17" />
+    </linearGradient>
+
+    <linearGradient id="border-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1F2937" />
+      <stop offset="30%" stop-color="#374151" />
+      <stop offset="50%" stop-color="#F5AF19" stop-opacity="0.8" />
+      <stop offset="70%" stop-color="#374151" />
+      <stop offset="100%" stop-color="#1F2937" />
+    </linearGradient>
+
+    <!-- Shard Gradients -->
+    <linearGradient id="teal-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#02AAB0" />
+      <stop offset="100%" stop-color="#00CDAC" />
+    </linearGradient>
+
+    <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F12711" />
+      <stop offset="100%" stop-color="#F5AF19" />
+    </linearGradient>
+
+    <linearGradient id="purple-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7F00FF" />
+      <stop offset="100%" stop-color="#FF007F" />
+    </linearGradient>
+
+    <linearGradient id="ruby-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E55D87" />
+      <stop offset="100%" stop-color="#5FC3E4" />
+    </linearGradient>
+
+    <linearGradient id="cement-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5AF19" />
+      <stop offset="50%" stop-color="#FF5B00" />
+      <stop offset="100%" stop-color="#F5AF19" />
+    </linearGradient>
+
+    <!-- Glow Filters -->
+    <filter id="glow-teal" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="glow-gold" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="glow-purple" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="blur-bg" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="40" />
+    </filter>
+
+    <!-- Dot Pattern -->
+    <pattern id="dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#374151" opacity="0.3" />
+    </pattern>
+  </defs>
+
+  <!-- 1. Background Card & Grid -->
+  <rect width="848" height="378" x="1" y="1" rx="16" fill="url(#bg-gradient)" stroke="url(#border-gradient)" stroke-width="1.5" />
+  <rect width="848" height="378" x="1" y="1" rx="16" fill="url(#dot-grid)" />
+
+  <!-- Premium Ambient Glows -->
+  <circle cx="200" cy="220" r="90" fill="#FF5B00" opacity="0.04" filter="url(#blur-bg)" class="pulse-glow" />
+  <circle cx="560" cy="220" r="110" fill="#00CDAC" opacity="0.04" filter="url(#blur-bg)" class="pulse-glow" />
+
+  <!-- 2. Header Area -->
+  <g transform="translate(0, 0)">
+    <!-- Logo -->
+    <text x="45" y="44" font-size="23" font-weight="700" fill="#F8FAFC" letter-spacing="-0.5px">breccia</text>
+    <circle cx="126" cy="34" r="3.5" fill="#F5AF19" filter="url(#glow-gold)" />
+    
+    <!-- Tagline separator and text -->
+    <line x1="144" y1="26" x2="144" y2="42" stroke="#374151" stroke-width="1" />
+    <text x="160" y="38" font-size="11.5" fill="#9CA3AF" font-weight="400" letter-spacing="0.3px" class="mono">block-scaled low-precision tensor primitive for ML compute</text>
+  </g>
+
+  <!-- 3. Left Panel (Philosophical) -->
+  <g transform="translate(0, 0)">
+    <!-- Titles -->
+    <text x="45" y="92" font-size="10" font-weight="700" fill="#F5AF19" letter-spacing="1.5px">THE METAPHOR</text>
+    <text x="45" y="114" font-size="16" font-weight="600" fill="#F1F5F9" letter-spacing="-0.2px">Fragments in a Matrix</text>
+    <text x="45" y="132" font-size="11" fill="#9CA3AF" font-style="italic">"Low-precision fragments bound together by a cementing scale matrix."</text>
+
+    <!-- Mosaic Rock Structure (Breccia) -->
+    <g transform="translate(10, 10)">
+      <!-- Wireframe schematic background circle -->
+      <circle cx="190" cy="210" r="75" fill="none" stroke="#1F2937" stroke-width="1" stroke-dasharray="4 4" />
+      <circle cx="190" cy="210" r="50" fill="none" stroke="#1F2937" stroke-width="1" stroke-dasharray="2 2" />
+
+      <!-- Glowing Cement Matrix (Fills the cracks, pulses!) -->
+      <path d="M 190,132 L 190,288 M 112,210 L 268,210 M 135,155 L 245,265 M 135,265 L 245,155" 
+            stroke="url(#cement-grad)" stroke-width="2" fill="none" class="cement-matrix" filter="url(#glow-gold)" />
+
+      <!-- Shards/Fragments that float apart and fuse together -->
+      <!-- Top-Left (Teal) -->
+      <path d="M 125,145 L 180,135 L 182,198 L 128,198 Z" fill="url(#teal-grad)" class="shard shard-teal" />
+      
+      <!-- Top-Right (Gold) -->
+      <path d="M 198,135 L 253,148 L 248,198 L 198,198 Z" fill="url(#gold-grad)" class="shard shard-gold" filter="url(#glow-gold)" />
+      
+      <!-- Bottom-Left (Purple) -->
+      <path d="M 128,212 L 182,212 L 180,275 L 125,260 Z" fill="url(#purple-grad)" class="shard shard-purple" />
+      
+      <!-- Bottom-Right (Ruby) -->
+      <path d="M 198,212 L 248,212 L 253,260 L 195,275 Z" fill="url(#ruby-grad)" class="shard shard-ruby" />
+
+      <!-- Target Fused Boundary Indicator -->
+      <rect x="115" y="125" width="150" height="170" rx="6" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="3 3" opacity="0.5" />
+      
+      <!-- Tiny labels -->
+      <text x="190" y="312" font-size="9" fill="#4B5563" class="mono" text-anchor="middle">SOLIDIFIED BRECCIA ROCK</text>
+    </g>
+  </g>
+
+  <!-- Middle Divider Line -->
+  <line x1="415" y1="80" x2="415" y2="330" stroke="#1F2937" stroke-width="1.2" stroke-dasharray="3 3" />
+
+  <!-- 4. Right Panel (Practical) -->
+  <g transform="translate(0, 0)">
+    <!-- Titles -->
+    <text x="445" y="92" font-size="10" font-weight="700" fill="#F5AF19" letter-spacing="1.5px">THE REPRESENTATION</text>
+    <text x="445" y="114" font-size="16" font-weight="600" fill="#F1F5F9" letter-spacing="-0.2px">Block-Scaled ScaledTensor</text>
+    <text x="445" y="132" font-size="11" fill="#9CA3AF">Quantizing FP16 inputs into low-precision data shards + per-block scales.</text>
+
+    <!-- Quantization Diagram -->
+    <g transform="translate(10, 15)">
+      
+      <!-- 1. High-Precision Row (FP16 Input) -->
+      <g transform="translate(435, 140)">
+        <text x="0" y="-8" font-size="9" font-weight="600" fill="#4B5563" letter-spacing="0.5px">HIGH-PRECISION INPUT TENSOR (FP16)</text>
+        
+        <!-- Frame -->
+        <rect x="0" y="0" width="220" height="18" rx="3" fill="#0E121E" stroke="#1F2937" stroke-width="1" />
+        
+        <!-- Input values grid -->
+        <g stroke="#1F2937" stroke-width="1" fill="none">
+          <line x1="27.5" y1="0" x2="27.5" y2="18" />
+          <line x1="55" y1="0" x2="55" y2="18" />
+          <line x1="82.5" y1="0" x2="82.5" y2="18" />
+          <line x1="110" y1="0" x2="110" y2="18" />
+          <line x1="137.5" y1="0" x2="137.5" y2="18" />
+          <line x1="165" y1="0" x2="165" y2="18" />
+          <line x1="192.5" y1="0" x2="192.5" y2="18" />
+        </g>
+        
+        <!-- Subtle labels inside -->
+        <text x="13.7" y="12" font-size="8" fill="#4B5563" class="mono" text-anchor="middle">X0</text>
+        <text x="41.2" y="12" font-size="8" fill="#4B5563" class="mono" text-anchor="middle">X1</text>
+        <text x="68.7" y="12" font-size="8" fill="#4B5563" class="mono" text-anchor="middle">X2</text>
+        <text x="96.2" y="12" font-size="8" fill="#4B5563" class="mono" text-anchor="middle">X3</text>
+        <text x="123.7" y="12" font-size="8" fill="#4B5563" class="mono" text-anchor="middle">X4</text>
+        <text x="151.2" y="12" font-size="8" fill="#4B5563" class="mono" text-anchor="middle">X5</text>
+        <text x="178.7" y="12" font-size="8" fill="#4B5563" class="mono" text-anchor="middle">X6</text>
+        <text x="206.2" y="12" font-size="8" fill="#4B5563" class="mono" text-anchor="middle">X7</text>
+      </g>
+
+      <!-- Laser Sweep Quantization Line -->
+      <g transform="translate(435, 168)">
+        <line x1="0" y1="0" x2="220" y2="0" stroke="#F5AF19" stroke-width="1" opacity="0.6" />
+        <polygon points="110,-3 113,0 110,3" fill="#F5AF19" />
+        <text x="225" y="3" font-size="8" fill="#F5AF19" class="mono">QUANTIZE (Block Size = 4)</text>
+      </g>
+
+      <!-- 2. ScaledTensor Representation (Low-Precision Data Shards + Scale Matrix) -->
+      <g transform="translate(435, 202)">
+        <text x="0" y="-8" font-size="9" font-weight="600" fill="#4B5563" letter-spacing="0.5px">BRECCIA SCALEDTENSOR REPRESENTATION</text>
+        
+        <!-- ScaledTensor outer boundary box -->
+        <rect x="-5" y="-3" width="230" height="96" rx="4" fill="none" stroke="#1F2937" stroke-width="1.2" stroke-dasharray="3 3" />
+
+        <!-- A. The Scales block (Per-block Scaling, e.g. S0 for first 4, S1 for next 4) -->
+        <g transform="translate(0, 10)">
+          <!-- Scale S0 capsule -->
+          <rect x="0" y="0" width="105" height="18" rx="3" fill="#0A1612" stroke="#00CDAC" stroke-width="1.2" class="pulse-scale" />
+          <text x="52.5" y="12" font-size="8.5" font-weight="600" fill="#00CDAC" class="mono" text-anchor="middle">Scale S0 (FP8/FP16)</text>
+
+          <!-- Scale S1 capsule -->
+          <rect x="115" y="0" width="105" height="18" rx="3" fill="#1C140B" stroke="#F5AF19" stroke-width="1.2" class="pulse-scale" />
+          <text x="167.5" y="12" font-size="8.5" font-weight="600" fill="#F5AF19" class="mono" text-anchor="middle">Scale S1 (FP8/FP16)</text>
+          
+          <!-- Label -->
+          <text x="225" y="12" font-size="9.5" font-weight="600" fill="#9CA3AF" class="mono">scale</text>
+        </g>
+
+        <!-- Dynamic wireframe connection lines between Scales and Data Blocks -->
+        <g fill="none" stroke-width="0.8" opacity="0.5">
+          <!-- Left group connections -->
+          <path d="M 52.5,28 L 52.5,45 M 52.5,45 L 13,55 M 52.5,45 L 41,55 M 52.5,45 L 69,55 M 52.5,45 L 97,55" 
+                stroke="#00CDAC" class="scaling-wire" />
+          <!-- Right group connections -->
+          <path d="M 167.5,28 L 167.5,45 M 167.5,45 L 128,55 M 167.5,45 L 156,55 M 167.5,45 L 184,55 M 167.5,45 L 211,55" 
+                stroke="#F5AF19" class="scaling-wire" />
+        </g>
+
+        <!-- B. The Data block (Packed FP4/FP8 values) -->
+        <g transform="translate(0, 56)">
+          <rect x="0" y="0" width="220" height="16" rx="2" fill="#070912" stroke="#1F2937" stroke-width="1" />
+          
+          <!-- Low-precision block items inside -->
+          <!-- Group 0 (Teal Shards) -->
+          <rect x="2" y="2" width="23" height="12" rx="1.5" fill="url(#teal-grad)" />
+          <rect x="27.5" y="2" width="23" height="12" rx="1.5" fill="url(#teal-grad)" />
+          <rect x="53" y="2" width="23" height="12" rx="1.5" fill="url(#teal-grad)" />
+          <rect x="78.5" y="2" width="23" height="12" rx="1.5" fill="url(#teal-grad)" />
+
+          <!-- Group 1 (Gold Shards) -->
+          <rect x="117" y="2" width="23" height="12" rx="1.5" fill="url(#gold-grad)" />
+          <rect x="142.5" y="2" width="23" height="12" rx="1.5" fill="url(#gold-grad)" />
+          <rect x="168" y="2" width="23" height="12" rx="1.5" fill="url(#gold-grad)" />
+          <rect x="193.5" y="2" width="23" height="12" rx="1.5" fill="url(#gold-grad)" />
+
+          <!-- Dotted Divider between scale groups in data -->
+          <line x1="110" y1="0" x2="110" y2="16" stroke="#374151" stroke-width="1" stroke-dasharray="2 2" />
+          
+          <!-- Label inside -->
+          <text x="52.5" y="10.5" font-size="7.5" fill="#05070D" font-weight="600" class="mono" text-anchor="middle">FP4 / FP8</text>
+          <text x="167.5" y="10.5" font-size="7.5" fill="#05070D" font-weight="600" class="mono" text-anchor="middle">FP4 / FP8</text>
+
+          <!-- Label -->
+          <text x="225" y="12" font-size="9.5" font-weight="600" fill="#9CA3AF" class="mono">data</text>
+        </g>
+        
+        <!-- Recipe and layout indicator -->
+        <g transform="translate(0, 84)">
+          <text x="0" y="0" font-size="8.5" fill="#4B5563" class="mono">recipe: Float8BlockScaling(block_k=4)</text>
+          <text x="140" y="0" font-size="8.5" fill="#4B5563" class="mono" text-anchor="end">layout: RowMajor</text>
+        </g>
+
+      </g>
+    </g>
+  </g>
+</svg>

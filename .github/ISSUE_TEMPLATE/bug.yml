@@ -1,0 +1,117 @@
+name: Bug report
+description: Something doesn't behave as it should
+title: "bug: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. The more we know upfront, the faster it gets fixed.
+
+        Please include a minimal reproduction — ideally ~10 lines of code we can paste.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected vs what actually happened.
+      placeholder: |
+        Expected `breccia.cast(x, Float8CurrentScaling())` to produce a ScaledTensor.
+        Got an exception instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Smallest possible code snippet that triggers the bug.
+      render: python
+      placeholder: |
+        import numpy as np, breccia
+        x = np.zeros((4, 128), dtype=np.float32)
+        st = breccia.cast(x, breccia.Float8CurrentScaling())  # raises ...
+    validations:
+      required: true
+
+  - type: input
+    id: breccia-version
+    attributes:
+      label: breccia version
+      description: Output of `python -c "import breccia; print(breccia.__version__)"`
+      placeholder: "0.0.1"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.11.5"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: recipe
+    attributes:
+      label: Recipe
+      options:
+        - DelayedScaling
+        - Float8CurrentScaling
+        - Float8BlockScaling
+        - MXFP8BlockScaling
+        - NVFP4BlockScaling
+        - INT4Scaling (symmetric)
+        - INT4Scaling (asymmetric)
+        - Multiple / cross-recipe
+        - Not recipe-specific
+    validations:
+      required: true
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      options:
+        - NumPy
+        - PyTorch
+        - MLX (Apple Silicon)
+        - JAX
+        - Multiple / cross-framework
+    validations:
+      required: true
+
+  - type: input
+    id: backend-version
+    attributes:
+      label: Backend version
+      description: Version of the relevant backend (`torch.__version__`, `mlx.core.__version__`, etc.)
+      placeholder: "torch 2.4.0"
+
+  - type: dropdown
+    id: bridge
+    attributes:
+      label: Bridge (if applicable)
+      options:
+        - Not a bridge bug
+        - TransformerEngine bridge
+        - torchao bridge
+        - HuggingFace safetensors bridge
+        - DLPack bridge
+        - DeepSeek-v3 bridge
+
+  - type: textarea
+    id: gpu-info
+    attributes:
+      label: GPU info (if relevant to a Triton kernel or vendor bridge bug)
+      description: GPU model, driver version, CUDA version, Triton version.
+      placeholder: |
+        NVIDIA H100 80GB SXM
+        Driver 550.54.15, CUDA 12.4
+        Triton 3.0.0
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Stack traces, logs, suspected fix, related issues.

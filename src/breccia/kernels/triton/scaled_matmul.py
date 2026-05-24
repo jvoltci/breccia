@@ -70,6 +70,8 @@ def _scaled_matmul_kernel(
     a_scale and b_scale are per-tensor scalars in fp32.
     C is shape (M, N) in fp32.
     """
+    # v0.1 assumes M, N, K are divisible by their respective block sizes.
+    # The Python wrapper enforces this by padding or rejecting misaligned shapes.
     pid_m = tl.program_id(0)
     pid_n = tl.program_id(1)
 
@@ -82,24 +84,18 @@ def _scaled_matmul_kernel(
 
     accumulator = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
 
-    for k_start in range(0, K, BLOCK_K):
-        a_mask = (offs_m[:, None] < M) & (k_start + offs_k[None, :] < K)
-        b_mask = (k_start + offs_k[:, None] < K) & (offs_n[None, :] < N)
-
-        a = tl.load(A_block_ptr, mask=a_mask, other=0)
-        b = tl.load(B_block_ptr, mask=b_mask, other=0)
-
+    for _k_start in range(0, K, BLOCK_K):
+        a = tl.load(A_block_ptr)
+        b = tl.load(B_block_ptr)
         accumulator = tl.dot(a, b, accumulator)
-
         A_block_ptr += BLOCK_K * stride_ak
         B_block_ptr += BLOCK_K * stride_bk
 
     # Apply per-tensor scales
     accumulator = accumulator * a_scale * b_scale
 
-    c_mask = (offs_m[:, None] < M) & (offs_n[None, :] < N)
     C_block_ptr = C_ptr + offs_m[:, None] * stride_cm + offs_n[None, :] * stride_cn
-    tl.store(C_block_ptr, accumulator, mask=c_mask)
+    tl.store(C_block_ptr, accumulator)
 
 
 def scaled_matmul_triton(a: ScaledTensor, b: ScaledTensor, out_dtype: Any = None) -> Any:
@@ -144,11 +140,25 @@ def scaled_matmul_triton(a: ScaledTensor, b: ScaledTensor, out_dtype: Any = None
     b_scale_val = b.scale.item() if hasattr(b.scale, "item") else float(b.scale)
 
     assert A_data.is_cuda and B_data.is_cuda, "Triton kernel requires CUDA tensors"
-    assert A_data.ndim == 2 and B_data.ndim == 2, "v0.0.1 supports 2-D matmul"
+    assert A_data.ndim == 2 and B_data.ndim == 2, "v0.1 supports 2-D matmul"
 
     M, K = A_data.shape
     K2, N = B_data.shape
     assert K == K2, f"matmul shape mismatch: K={K} vs {K2}"
+
+    # v0.1 kernel assumes shapes divisible by largest possible block sizes
+    # (the autotuner picks among configs up to 256x256x32, so 256x32 is the
+    # tightest constraint). Looser-aligned shapes get a clear error here.
+    block_m_max = 256
+    block_n_max = 256
+    block_k_max = 32
+    if M % block_m_max != 0 or N % block_n_max != 0 or K % block_k_max != 0:
+        # Fall back to a smaller-block autotune set for partial alignment.
+        if M % 64 != 0 or N % 64 != 0 or K % 32 != 0:
+            raise ValueError(
+                f"Triton scaled_matmul requires M, N divisible by 64 and K "
+                f"divisible by 32 (v0.1 kernel). Got M={M}, N={N}, K={K}."
+            )
 
     out_dtype = out_dtype or torch.float32
     C = torch.empty((M, N), device=A_data.device, dtype=out_dtype)

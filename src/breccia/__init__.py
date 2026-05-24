@@ -23,7 +23,7 @@ from .layouts import (
 from .kernels.reference import cast, dequantize, requantize, matmul
 from .autograd import cast_ste, cast_ste_clipped
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 __all__ = [
     "ScaledTensor",

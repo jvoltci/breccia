@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "breccia"
-version = "0.0.1"
+version = "0.1.0"
 description = "Cross-framework block-scaled tensor primitive (FP8 / FP4 / MXFP8 / NVFP4 / INT4)"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 authors = [{name = "breccia contributors"}]
 requires-python = ">=3.10"
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: Apache Software License",

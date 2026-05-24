@@ -1,7 +1,9 @@
-# breccia
+<p align="center">
+  <img src="docs/assets/hero.svg" alt="breccia hero banner" width="100%">
+</p>
 
-A cross-framework block-scaled tensor primitive for low-precision compute
-(FP8 / FP4 / MXFP8 / NVFP4 / INT4).
+<h3 align="center">A cross-framework block-scaled tensor primitive for low-precision compute (FP8 / FP4 / MXFP8 / NVFP4 / INT4).</h3>
+
 
 ```python
 import numpy as np
@@ -97,7 +99,7 @@ Reproduce: `python benchmarks/bench_accuracy.py`
 
 ## Status
 
-v0.0.1, pre-alpha.
+v0.1.0, first beta release.
 
 | Component | Status |
 | --- | --- |
@@ -106,12 +108,14 @@ v0.0.1, pre-alpha.
 | 4 Layouts | ✅ |
 | `cast` / `dequantize` / `matmul` / `requantize` | ✅ |
 | Bridges: TE / torchao / HF / DLPack / DeepSeek-v3 | ✅ |
-| NumPy + PyTorch + MLX backends | ✅ |
-| Triton FP8 scaled matmul (per-tensor) | 🟡 written, GPU validation deferred to v0.1 |
-| JAX backend | 🟡 v0.1 |
-| Straight-through estimator for autograd | 🟡 v0.1 |
+| NumPy + PyTorch + MLX + JAX backends | ✅ |
+| Triton FP8 scaled matmul (per-tensor) | ✅ validated on H100 (cos sim 0.9993 vs FP32) |
+| Straight-through estimator (`cast_ste`, `cast_ste_clipped`) | ✅ |
+| Asymmetric INT4 (zero-point) | ✅ |
+| Block-scaled Triton kernel | 🟡 v0.2 (per-tensor only in v0.1) |
+| Native PyTorch FP8 acceleration (vs round-trip) | 🟡 v0.2 |
 
-192 tests passing. CI on Python 3.10 / 3.11 / 3.12 (Ubuntu) + 3.11 (macOS).
+250+ tests passing. CI on Python 3.10 / 3.11 / 3.12 (Ubuntu) + 3.11 (macOS).
 
 ## Install
 
