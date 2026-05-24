@@ -2,7 +2,23 @@
   <img src="docs/assets/hero.svg" alt="breccia hero banner" width="100%">
 </p>
 
+<p align="center">
+  <a href="https://pypi.org/project/breccia/"><img src="https://img.shields.io/pypi/v/breccia.svg" alt="PyPI version"></a>
+  <a href="https://pypi.org/project/breccia/"><img src="https://img.shields.io/pypi/pyversions/breccia.svg" alt="Python versions"></a>
+  <a href="https://github.com/jvoltci/breccia/blob/master/LICENSE"><img src="https://img.shields.io/pypi/l/breccia.svg" alt="License"></a>
+  <a href="https://github.com/jvoltci/breccia/actions/workflows/ci.yml"><img src="https://github.com/jvoltci/breccia/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/jvoltci/breccia/actions/workflows/docs.yml"><img src="https://github.com/jvoltci/breccia/actions/workflows/docs.yml/badge.svg" alt="Docs"></a>
+  <a href="https://github.com/jvoltci/breccia/stargazers"><img src="https://img.shields.io/github/stars/jvoltci/breccia.svg?style=social" alt="GitHub stars"></a>
+</p>
+
 <h3 align="center">A cross-framework block-scaled tensor primitive for low-precision compute (FP8 / FP4 / MXFP8 / NVFP4 / INT4).</h3>
+
+<p align="center">
+  <a href="https://jvoltci.github.io/breccia/"><b>📚 Documentation</b></a> ·
+  <a href="https://pypi.org/project/breccia/"><b>📦 PyPI</b></a> ·
+  <a href="https://github.com/jvoltci/breccia/discussions"><b>💬 Discussions</b></a> ·
+  <a href="https://github.com/jvoltci/breccia/issues"><b>🐛 Issues</b></a>
+</p>
 
 
 ```python
@@ -104,16 +120,17 @@ v0.1.0, first beta release.
 | Component | Status |
 | --- | --- |
 | `ScaledTensor` type + invariants | ✅ |
-| 6 ScalingRecipes | ✅ |
+| 6 ScalingRecipes (incl. asymmetric INT4 with zero-point) | ✅ |
 | 4 Layouts | ✅ |
 | `cast` / `dequantize` / `matmul` / `requantize` | ✅ |
 | Bridges: TE / torchao / HF / DLPack / DeepSeek-v3 | ✅ |
 | NumPy + PyTorch + MLX + JAX backends | ✅ |
-| Triton FP8 scaled matmul (per-tensor) | ✅ validated on H100 (cos sim 0.9993 vs FP32) |
+| Native PyTorch FP8 acceleration (`torch.float8_e4m3fn` end-to-end) | ✅ |
 | Straight-through estimator (`cast_ste`, `cast_ste_clipped`) | ✅ |
-| Asymmetric INT4 (zero-point) | ✅ |
-| Block-scaled Triton kernel | 🟡 v0.2 (per-tensor only in v0.1) |
-| Native PyTorch FP8 acceleration (vs round-trip) | 🟡 v0.2 |
+| Triton FP8 scaled matmul (per-tensor) | ✅ H100 validated (cos sim 0.9993 vs FP32) |
+| Triton block-scaled FP8 matmul (DeepSeek pattern) | ✅ H100 validated (cos sim 0.9813 vs FP32) |
+| Live TransformerEngine bridge validation in CI | 🟡 v0.2 (mock-tested in v0.1; needs CUDA toolkit image) |
+| Triton autotune cold-path AOT compilation | 🟡 v0.2 |
 
 250+ tests passing. CI on Python 3.10 / 3.11 / 3.12 (Ubuntu) + 3.11 (macOS).
 
