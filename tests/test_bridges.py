@@ -137,9 +137,12 @@ def test_dlpack_torch_to_numpy():
     import torch
 
     np.random.seed(0)
-    x = torch.randn(4, 64, dtype=torch.float32)
-    st = cast(x, Float8CurrentScaling())
-    # Round-trip via DLPack: torch → numpy → ScaledTensor (numpy-backed).
+    x = torch.randn(4, 32, dtype=torch.float32)
+    # Use NVFP4 (uint8-packed data) — NumPy has no FP8 dtype, so DLPack of
+    # a torch.float8_e4m3fn-backed ScaledTensor to NumPy is intentionally
+    # unsupported. NVFP4 / INT4 / MXFP8 keep uint8 storage and round-trip
+    # cleanly.
+    st = cast(x, NVFP4BlockScaling())
     st_np = from_dlpack(st, framework="numpy")
     assert type(st_np.data).__module__.startswith("numpy")
     out = dequantize(st_np)
@@ -151,8 +154,8 @@ def test_dlpack_returns_capsules():
     pytest.importorskip("torch")
     import torch
 
-    x = torch.randn(4, 64, dtype=torch.float32)
-    st = cast(x, Float8CurrentScaling())
+    x = torch.randn(4, 32, dtype=torch.float32)
+    st = cast(x, NVFP4BlockScaling())
     data_cap, scale_cap = to_dlpack(st)
     # DLPack capsules are opaque Python objects of type PyCapsule.
     assert "PyCapsule" in type(data_cap).__name__ or hasattr(data_cap, "__dlpack__")
